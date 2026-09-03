@@ -14,7 +14,7 @@ import {
 } from "./focusField";
 import { INDENT_UNIT, parseLine } from "./grammar";
 import { markerInputAction, setSwallowedMarker, swallowedMarkerField } from "./markerInput";
-import { pendingTaskField } from "./pendingTask";
+import { pendingTaskField, setPendingTask } from "./pendingTask";
 import { transformPastedText } from "./paste";
 
 export interface EditorHooks {
@@ -114,7 +114,15 @@ export function createEditor(hooks: EditorHooks) {
       return true;
     }
 
-    view.dispatch({ effects: setSwallowedMarker.of({ pos: from, consumed: action.consumed }) });
+    // Show the waiting checkbox as the marker is absorbed. Without it the
+    // keystroke looks like it did nothing, and the natural response is to
+    // press the key again.
+    view.dispatch({
+      effects: [
+        setSwallowedMarker.of({ pos: from, consumed: action.consumed }),
+        setPendingTask.of(state.doc.lineAt(from).from),
+      ],
+    });
     return true;
   });
 

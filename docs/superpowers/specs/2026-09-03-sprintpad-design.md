@@ -276,3 +276,9 @@ start with a bracket.
 
 The absorbing run lives in a StateField and ends on any other input or cursor
 move, so it can only ever swallow a contiguous marker at the position it began.
+
+Absorbing silently was a mistake: on a blank line with no waiting checkbox
+showing, pressing `[` produced no visible change at all, and the natural
+response is to press it again -- which is exactly the escape hatch, so you get
+a literal bracket. Absorbing now also marks the line as the pending task, so
+the checkbox appears on the first press. One key, one visible task.
