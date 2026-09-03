@@ -2,6 +2,8 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import {
   changeIndent,
+  clearCompleted,
+  convertToTasks,
   focusTargetAt,
   nextOpenTaskAfter,
   newTaskLine,
@@ -162,5 +164,55 @@ describe("nextOpenTaskAfter", () => {
   it("returns null when nothing is open", () => {
     const state = stateOf("[x] one\n[x] two|");
     expect(nextOpenTaskAfter(state, 0)).toBeNull();
+  });
+});
+
+describe("convertToTasks", () => {
+  it("turns selected bare lines into tasks", () => {
+    expect(apply("|Pay taxes\nReview bets|", convertToTasks)).toBe("[] Pay taxes\n[] Review bets");
+  });
+
+  it("preserves indentation", () => {
+    expect(apply("  Nested note|", convertToTasks)).toBe("  [] Nested note");
+  });
+
+  it("leaves existing tasks and blanks alone", () => {
+    expect(apply("|[] one\n\nTwo|", convertToTasks)).toBe("[] one\n\n[] Two");
+  });
+
+  it("does nothing when there is no header line", () => {
+    expect(convertToTasks(stateOf("[] one|"))).toBeNull();
+  });
+});
+
+describe("clearCompleted", () => {
+  it("removes completed tasks anywhere in the document", () => {
+    expect(apply("TODAY\n[] one\n[x] two\n[] three|", clearCompleted)).toBe(
+      "TODAY\n[] one\n[] three",
+    );
+  });
+
+  it("removes several in a row without leaving gaps", () => {
+    expect(apply("[] one\n[x] two\n[x] three\n[] four|", clearCompleted)).toBe("[] one\n[] four");
+  });
+
+  it("handles a completed task on the first line", () => {
+    expect(apply("[x] one\n[] two|", clearCompleted)).toBe("[] two");
+  });
+
+  it("removes a run of completed tasks at the end of the document", () => {
+    expect(apply("[] one\n[x] two\n[x] three|", clearCompleted)).toBe("[] one");
+  });
+
+  it("empties a document that is entirely complete", () => {
+    expect(apply("[x] one\n[x] two|", clearCompleted)).toBe("");
+  });
+
+  it("leaves headers alone", () => {
+    expect(apply("HIGHRISE\n[x] one|", clearCompleted)).toBe("HIGHRISE");
+  });
+
+  it("does nothing when nothing is complete", () => {
+    expect(clearCompleted(stateOf("[] one|"))).toBeNull();
   });
 });

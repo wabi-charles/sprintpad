@@ -1,5 +1,5 @@
 import type { EditorState, Line, TransactionSpec } from "@codemirror/state";
-import { INDENT_UNIT, parseLine, setCompleted, setIndentLevel } from "./grammar";
+import { INDENT_UNIT, indentTextFor, markerFor, parseLine } from "./grammar";
 
 /**
  * Editing logic as pure `(state) -> TransactionSpec | null` functions. Keeping
@@ -75,27 +75,40 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
 /**
  * Cmd-D. Completes every task the selection touches; reopens them only when
  * they are already all complete, so a mixed selection resolves to "done".
+ *
+ * Only the marker span is rewritten, never the whole line -- that keeps a
+ * running session's anchor (and the user's selection) attached to the task.
  */
 export function toggleDone(state: EditorState): TransactionSpec | null {
-  const tasks = touchedLines(state).filter((line) => parseLine(line.text).kind === "task");
+  const tasks = touchedLines(state)
+    .map((line) => ({ line, parsed: parseLine(line.text) }))
+    .filter(({ parsed }) => parsed.kind === "task");
   if (tasks.length === 0) return null;
 
-  const completed = !tasks.every((line) => parseLine(line.text).completed);
+  const completed = !tasks.every(({ parsed }) => parsed.completed);
   const changes = tasks
-    .map((line) => ({ from: line.from, to: line.to, insert: setCompleted(line.text, completed) }))
-    .filter((change) => change.insert !== state.doc.sliceString(change.from, change.to));
+    .filter(({ parsed }) => parsed.completed !== completed)
+    .map(({ line, parsed }) => ({
+      from: line.from + parsed.markerFrom,
+      to: line.from + parsed.markerTo,
+      insert: markerFor(completed),
+    }));
 
   return changes.length > 0 ? { changes } : null;
 }
 
-/** Tab / Shift-Tab. Re-indents in canonical units, normalizing stray tabs. */
+/**
+ * Tab / Shift-Tab. Rewrites only the leading whitespace, normalizing stray
+ * tabs to the canonical unit on the way.
+ */
 export function changeIndent(state: EditorState, delta: number): TransactionSpec | null {
   const changes = [];
   for (const line of touchedLines(state)) {
     const parsed = parseLine(line.text);
     if (parsed.kind === "blank") continue;
-    const insert = setIndentLevel(line.text, Math.max(0, parsed.indent + delta));
-    if (insert !== line.text) changes.push({ from: line.from, to: line.to, insert });
+    const insert = indentTextFor(parsed.indent + delta);
+    if (insert === parsed.indentText) continue;
+    changes.push({ from: line.from, to: line.from + parsed.indentText.length, insert });
   }
   return changes.length > 0 ? { changes } : null;
 }
@@ -110,7 +123,13 @@ export function completeLineAt(state: EditorState, pos: number): TransactionSpec
   const line = state.doc.lineAt(Math.min(pos, state.doc.length));
   const parsed = parseLine(line.text);
   if (parsed.kind !== "task" || parsed.completed) return null;
-  return { changes: { from: line.from, to: line.to, insert: setCompleted(line.text, true) } };
+  return {
+    changes: {
+      from: line.from + parsed.markerFrom,
+      to: line.from + parsed.markerTo,
+      insert: markerFor(true),
+    },
+  };
 }
 
 /**
@@ -125,4 +144,49 @@ export function nextOpenTaskAfter(state: EditorState, pos: number): TaskTarget |
     if (target && !target.completed) return target;
   }
   return null;
+}
+
+/**
+ * Palette action. Typing a bare line leaves a header by design, so this is the
+ * explicit way to say "these are tasks" without retyping the markers.
+ */
+export function convertToTasks(state: EditorState): TransactionSpec | null {
+  const changes = [];
+  for (const line of touchedLines(state)) {
+    const parsed = parseLine(line.text);
+    if (parsed.kind !== "header") continue;
+    changes.push({
+      from: line.from + parsed.indentText.length,
+      to: line.from + parsed.indentText.length,
+      insert: "[] ",
+    });
+  }
+  return changes.length > 0 ? { changes } : null;
+}
+
+/** Palette action. Sweeps finished work out of the way, headers untouched. */
+export function clearCompleted(state: EditorState): TransactionSpec | null {
+  const end = state.doc.length;
+  const ranges: Array<{ from: number; to: number }> = [];
+
+  for (let n = 1; n <= state.doc.lines; n++) {
+    const line = state.doc.line(n);
+    if (!parseLine(line.text).completed) continue;
+    const from = line.from;
+    const to = Math.min(line.to + 1, end);
+    // Runs of completed lines merge, which keeps the trailing-newline
+    // adjustment below from overlapping the range before it.
+    const previous = ranges[ranges.length - 1];
+    if (previous && previous.to === from) previous.to = to;
+    else ranges.push({ from, to });
+  }
+
+  if (ranges.length === 0) return null;
+
+  // A run reaching the end of the document has no trailing newline to consume,
+  // so it takes the preceding one instead and leaves no blank line behind.
+  const last = ranges[ranges.length - 1]!;
+  if (last.to === end && last.from > 0) last.from -= 1;
+
+  return { changes: ranges };
 }

@@ -156,3 +156,30 @@ Each step ends green. Tests first for the pure modules (grammar, paste, edits, t
 - **CM6 keymap precedence** on macOS (⌘↑/⌘↓/⌘D). Addressed with `Prec.highest`; verified in step 5.
 - **Checkbox widget vs. cursor movement** — replacing `[]` with a widget can make arrow-key navigation feel off. Mitigation: widgets are non-atomic so the cursor traverses the underlying text normally.
 - **Header-vs-task ambiguity** — mitigated by the Enter continuation behavior and paste transform; if it still surprises in use, the fallback is requiring `#` for headers.
+
+---
+
+## Addendum: what changed during implementation
+
+Two refinements to the focus-anchor design, both found by writing tests against
+real `moveLine` transactions rather than assuming how they were built.
+
+**Edits are minimal-diff.** `toggleDone` and `changeIndent` rewrite only the
+marker span or the leading whitespace, never the whole line. Rewriting the line
+would delete the anchored character and drop a running session's anchor, so
+completing or indenting the task you were focusing on would have lost focus.
+Smaller undo steps and preserved selections are a free side benefit.
+
+**The title fallback is not an edge case.** Moving a *neighbouring* line past the
+focused one makes CodeMirror delete and reinsert the focused line's text, which
+legitimately drops the anchor. `resolveFocusedLine` recovers focus by title, and
+`reanchorTo` re-attaches a fresh anchor so position tracking resumes.
+
+One behavioural decision worth recording: completing the focused task by any
+route — `⌘D`, the checkbox, the panel's Done button — ends the session. All
+three funnel through a single observer on document change rather than each
+ending the session themselves.
+
+`⌘D` deliberately does nothing on a header line. "Convert lines to tasks" in the
+command palette is the explicit way to turn bare lines into tasks, which keeps
+one key from carrying two meanings.

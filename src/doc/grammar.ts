@@ -91,18 +91,13 @@ export function serializeTask(indent: number, completed: boolean, text: string):
   return `${INDENT_UNIT.repeat(Math.max(0, indent))}[${completed ? "x" : ""}] ${text}`;
 }
 
-/** Flips a task's marker. A header becomes an open or completed task. */
-export function setCompleted(line: string, completed: boolean): string {
-  const parsed = parseLine(line);
-  if (parsed.kind === "blank") return line;
-  return serializeTask(parsed.indent, completed, parsed.text);
+/** The marker text for a state, written into just the marker span. */
+export function markerFor(completed: boolean): string {
+  return completed ? "[x]" : "[]";
 }
 
-export function setIndentLevel(line: string, indent: number): string {
-  const parsed = parseLine(line);
-  if (parsed.kind === "blank") return line;
-  const body = line.slice(parsed.indentText.length);
-  return INDENT_UNIT.repeat(Math.max(0, indent)) + body;
+export function indentTextFor(level: number): string {
+  return INDENT_UNIT.repeat(Math.max(0, level));
 }
 
 /**

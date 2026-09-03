@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   INDENT_UNIT,
+  indentTextFor,
   isTaskLine,
+  markerFor,
   normalizeImportedText,
   parseLine,
   serializeTask,
-  setIndentLevel,
-  setCompleted,
 } from "./grammar";
 
 describe("parseLine", () => {
@@ -81,29 +81,18 @@ describe("serializeTask", () => {
   });
 });
 
-describe("setCompleted", () => {
-  it("flips the marker while preserving indent and text", () => {
-    expect(setCompleted("  [] Review bets", true)).toBe("  [x] Review bets");
-    expect(setCompleted("  [x] Review bets", false)).toBe("  [] Review bets");
-  });
-
-  it("turns a header into a task when completed", () => {
-    expect(setCompleted("HIGHRISE", true)).toBe("[x] HIGHRISE");
-  });
-
-  it("leaves blank lines alone", () => {
-    expect(setCompleted("   ", true)).toBe("   ");
+describe("markerFor", () => {
+  it("renders the two marker states", () => {
+    expect(markerFor(false)).toBe("[]");
+    expect(markerFor(true)).toBe("[x]");
   });
 });
 
-describe("setIndentLevel", () => {
-  it("re-indents with the canonical unit", () => {
-    expect(setIndentLevel("[] a", 2)).toBe("    [] a");
-    expect(setIndentLevel("\t\t[] a", 0)).toBe("[] a");
-  });
-
-  it("never goes below zero", () => {
-    expect(setIndentLevel("[] a", -3)).toBe("[] a");
+describe("indentTextFor", () => {
+  it("builds canonical indentation and never goes below zero", () => {
+    expect(indentTextFor(2)).toBe(INDENT_UNIT.repeat(2));
+    expect(indentTextFor(0)).toBe("");
+    expect(indentTextFor(-3)).toBe("");
   });
 });
 
