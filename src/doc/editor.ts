@@ -2,7 +2,7 @@ import { defaultKeymap, history, historyKeymap, moveLineDown, moveLineUp } from 
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
-import { indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
+import { deleteLineHead, indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
 import { sprintpadDecorations } from "./decorations";
 import { completeLineAt, focusTargetAt, nextOpenTaskAfter, toggleDone, type TaskTarget } from "./edits";
 import {
@@ -63,6 +63,7 @@ export function createEditor(hooks: EditorHooks) {
   const sprintpadKeymap = Prec.highest(
     keymap.of([
       { key: "Enter", run: insertTaskLine },
+      { key: "Backspace", run: deleteLineHead },
       { key: "Mod-Enter", run: startFocus, preventDefault: true },
       { key: "Mod-d", run: toggleTaskDone, preventDefault: true },
       { key: "Mod-ArrowUp", run: moveLineUp, preventDefault: true },

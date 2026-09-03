@@ -87,6 +87,45 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
 }
 
 /**
+ * Backspace at the head of a line, where the markers are invisible.
+ *
+ * A hidden `[x] ` or `# ` is several characters wide, so plain backspace eats
+ * it one at a time through states that render as nothing changing. One press
+ * removes the whole marker and leaves an ordinary open task.
+ *
+ * The same applies to indentation: half a level is not a state worth stopping
+ * in, so one press removes a whole level.
+ */
+export function backspaceAtLineHead(state: EditorState): TransactionSpec | null {
+  const range = state.selection.main;
+  if (state.selection.ranges.length > 1 || !range.empty) return null;
+
+  const line = state.doc.lineAt(range.head);
+  const parsed = parseLine(line.text);
+  const offset = range.head - line.from;
+
+  // On an unindented line the marker is invisible, so the caret slots before
+  // and after it sit at the same place on screen -- a click at the head of the
+  // text can land on either. Both have to unwrap, or backspace would sometimes
+  // silently join lines instead.
+  const atMarkerHead = parsed.markerFrom === 0 ? offset >= 0 : offset > parsed.markerFrom;
+  if (parsed.markerTo > parsed.markerFrom && atMarkerHead && offset <= parsed.markerTo) {
+    return { changes: { from: line.from + parsed.markerFrom, to: line.from + parsed.markerTo } };
+  }
+
+  if (offset > 0 && offset <= parsed.indentText.length) {
+    const insert = indentTextFor(parsed.indent - 1);
+    if (insert === parsed.indentText) return null;
+    return {
+      changes: { from: line.from, to: line.from + parsed.indentText.length, insert },
+      selection: { anchor: line.from + insert.length },
+    };
+  }
+
+  return null;
+}
+
+/**
  * Cmd-D. Completes every task the selection touches; reopens them only when
  * they are already all complete, so a mixed selection resolves to "done".
  *

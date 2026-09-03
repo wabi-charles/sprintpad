@@ -1,6 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import {
+  backspaceAtLineHead,
   changeIndent,
   clearCompleted,
   focusTargetAt,
@@ -303,5 +304,64 @@ describe("clearCompleted", () => {
 
   it("does nothing when nothing is complete", () => {
     expect(clearCompleted(stateOf("one|"))).toBeNull();
+  });
+});
+
+describe("backspaceAtLineHead", () => {
+  it("removes a completed marker in one press", () => {
+    expect(apply("[x] |Pay taxes", backspaceAtLineHead)).toBe("Pay taxes");
+  });
+
+  it("removes a header marker in one press", () => {
+    expect(apply("# |BACKLOG", backspaceAtLineHead)).toBe("BACKLOG");
+    expect(apply("## |BACKLOG", backspaceAtLineHead)).toBe("BACKLOG");
+  });
+
+  it("removes an explicit open marker", () => {
+    expect(apply("[] |Pay taxes", backspaceAtLineHead)).toBe("Pay taxes");
+  });
+
+  it("keeps indentation when removing a marker", () => {
+    expect(apply("  [x] |Pay taxes", backspaceAtLineHead)).toBe("  Pay taxes");
+    expect(apply("  # |Note", backspaceAtLineHead)).toBe("  Note");
+  });
+
+  it("removes the whole marker from inside it", () => {
+    expect(apply("[|x] Pay taxes", backspaceAtLineHead)).toBe("Pay taxes");
+  });
+
+  it("unwraps from before an invisible marker too, since it looks identical", () => {
+    expect(apply("|# BACKLOG", backspaceAtLineHead)).toBe("BACKLOG");
+    expect(apply("|[x] Pay taxes", backspaceAtLineHead)).toBe("Pay taxes");
+  });
+
+  it("still outdents from before the marker when the line is indented", () => {
+    // There the caret is visibly at the indent, not at the head of the text.
+    expect(apply("one\n  |[x] Pay taxes", backspaceAtLineHead)).toBe("one\n[x] Pay taxes");
+  });
+
+  it("removes a whole indent level, not half of one", () => {
+    expect(apply("  |Task", backspaceAtLineHead)).toBe("Task");
+    expect(apply("    |Task", backspaceAtLineHead)).toBe("  Task");
+  });
+
+  it("leaves the cursor at the head of the text after outdenting", () => {
+    const state = stateOf("    |Task");
+    const next = state.update(backspaceAtLineHead(state)!).state;
+    expect(next.selection.main.head).toBe(2);
+  });
+
+  it("outdents an empty line, matching Enter's step-out", () => {
+    expect(apply("one\n    |", backspaceAtLineHead)).toBe("one\n  ");
+  });
+
+  it("defers to the editor default with nothing to unwrap", () => {
+    expect(backspaceAtLineHead(stateOf("|Pay taxes"))).toBeNull();
+    expect(backspaceAtLineHead(stateOf("Pay ta|xes"))).toBeNull();
+    expect(backspaceAtLineHead(stateOf("one\n|"))).toBeNull();
+  });
+
+  it("defers to the editor default when text is selected", () => {
+    expect(backspaceAtLineHead(stateOf("[x] |Pay| taxes"))).toBeNull();
   });
 });

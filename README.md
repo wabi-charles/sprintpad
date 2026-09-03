@@ -55,6 +55,7 @@ your list out, select it and copy — it is plain text.
 | Step back out of a nested task | `Enter` again on the empty line |
 | Start focus on the task at the cursor | `⌘Enter` |
 | Complete task | `⌘D` |
+| Unwrap a header or completed task | `Backspace` at the head of the text |
 | Make a line a header | type `# `, or "Toggle header" in `⌘K` |
 | Move task up / down | `⌘↑` / `⌘↓` (or `⌥↑` / `⌥↓`) |
 | Indent / outdent | `Tab` / `⇧Tab` |

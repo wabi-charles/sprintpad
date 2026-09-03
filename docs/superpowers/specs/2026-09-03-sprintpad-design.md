@@ -333,3 +333,20 @@ three palette entries driven by `window.prompt`, which blocks the page, is
 silently unavailable in some embedded contexts, and cannot show the current
 value while you change it. They are now one entry opening a small panel that
 commits on input. The palette is down to five.
+
+
+---
+
+## Addendum 7: Backspace at the head of a line
+
+`[x] ` and `# ` are hidden by decorations, so plain backspace ate them one
+character at a time through states that render as nothing changing (`[x] foo`
+-> `[x]foo` -> `[xfoo`). One press now removes the whole marker, leaving an
+ordinary open task. Indentation behaves the same way: a whole level per press,
+since half a level is not a state worth stopping in.
+
+Because the marker is invisible, the caret slots either side of it sit at the
+same place on screen. On an unindented line both therefore unwrap, or backspace
+would sometimes join lines instead for no visible reason. On an indented line
+the caret before the marker is visibly at the indent, so that position still
+outdents.
