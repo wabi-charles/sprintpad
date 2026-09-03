@@ -13,6 +13,7 @@ import {
   setFocusAnchor,
 } from "./focusField";
 import { INDENT_UNIT, parseLine } from "./grammar";
+import { markerInputAction, setSwallowedMarker, swallowedMarkerField } from "./markerInput";
 import { pendingTaskField } from "./pendingTask";
 import { transformPastedText } from "./paste";
 
@@ -88,6 +89,35 @@ export function createEditor(hooks: EditorHooks) {
     },
   });
 
+  /**
+   * Absorbs a `[]` typed out of habit at the head of an empty task, so it does
+   * not land next to the checkbox as literal text. See markerInput.ts.
+   */
+  const markerInput = EditorView.inputHandler.of((view, from, to, typed) => {
+    if (from !== to) return false;
+    const { state } = view;
+    const action = markerInputAction(
+      state.doc.lineAt(from),
+      from,
+      typed,
+      state.field(swallowedMarkerField, false) ?? null,
+    );
+    if (action === null) return false;
+
+    if (action.kind === "literal") {
+      view.dispatch({
+        changes: { from, insert: typed },
+        selection: { anchor: from + typed.length },
+        effects: setSwallowedMarker.of(null),
+        userEvent: "input.type",
+      });
+      return true;
+    }
+
+    view.dispatch({ effects: setSwallowedMarker.of({ pos: from, consumed: action.consumed }) });
+    return true;
+  });
+
   const view = new EditorView({
     parent: hooks.parent,
     state: EditorState.create({
@@ -98,6 +128,8 @@ export function createEditor(hooks: EditorHooks) {
         highlightSelectionMatches(),
         focusAnchorField,
         pendingTaskField,
+        swallowedMarkerField,
+        markerInput,
         sprintpadDecorations((clicked, pos) => {
           // Toggle the clicked line without disturbing the real selection.
           const at = clicked.state.update({ selection: { anchor: pos } }).state;

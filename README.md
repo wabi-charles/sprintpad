@@ -28,7 +28,9 @@ Highrise - Claude data setup
 Anything else
 ```
 
-- **Every line is a task.** Just type. There are no markers to remember.
+- **Every line is a task.** Just type. There are no markers to remember. If you
+  type `[]` out of habit at the head of an empty task, it is absorbed rather
+  than left sitting next to the checkbox. Press `[` twice for a real bracket.
 - `Enter` opens the next task and shows you an empty checkbox, like a bullet
   list. Press it again on that empty line to step back out one indent level at
   a time; at the left margin the checkbox goes away and you have plain blank

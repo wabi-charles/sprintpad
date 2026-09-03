@@ -177,6 +177,24 @@ describe("changeIndent", () => {
     expect(apply("|one\n  two|", (s) => changeIndent(s, -1))).toBe("one\ntwo");
   });
 
+  it("indents a task you just opened, before it has any text", () => {
+    expect(apply("one\n|", (s) => changeIndent(s, 1))).toBe("one\n  ");
+    expect(apply("one\n  |", (s) => changeIndent(s, -1))).toBe("one\n");
+  });
+
+  it("leaves the cursor after the indent, so typing lands inside it", () => {
+    const state = stateOf("one\n|");
+    const next = state.update(changeIndent(state, 1)!).state;
+    expect(next.selection.main.head).toBe(next.doc.length);
+
+    const back = next.update(changeIndent(next, -1)!).state;
+    expect(back.selection.main.head).toBe(back.doc.length);
+  });
+
+  it("leaves blank spacers alone when indenting a block", () => {
+    expect(apply("|one\n\ntwo|", (s) => changeIndent(s, 1))).toBe("  one\n\n  two");
+  });
+
   it("does nothing when everything is already at the margin", () => {
     expect(changeIndent(stateOf("one|"), -1)).toBeNull();
   });

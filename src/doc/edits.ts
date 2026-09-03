@@ -114,17 +114,30 @@ export function toggleDone(state: EditorState): TransactionSpec | null {
 /**
  * Tab / Shift-Tab. Rewrites only the leading whitespace, normalizing stray
  * tabs to the canonical unit on the way.
+ *
+ * A single empty line still indents -- that is a task you just opened with
+ * Enter and want nested. Blank lines inside a multi-line selection are left
+ * alone, so indenting a block does not fill its spacers with whitespace.
  */
 export function changeIndent(state: EditorState, delta: number): TransactionSpec | null {
+  const lines = touchedLines(state);
   const changes = [];
-  for (const line of touchedLines(state)) {
+  // On an empty line the cursor sits exactly where the indent is inserted, so
+  // it has to be placed explicitly -- otherwise it is left stranded to the
+  // left of the whitespace and the next character typed lands before it.
+  let caret: number | null = null;
+
+  for (const line of lines) {
     const parsed = parseLine(line.text);
-    if (parsed.kind === "blank") continue;
+    if (parsed.kind === "blank" && lines.length > 1) continue;
     const insert = indentTextFor(parsed.indent + delta);
     if (insert === parsed.indentText) continue;
+    if (parsed.kind === "blank") caret = line.from + insert.length;
     changes.push({ from: line.from, to: line.from + parsed.indentText.length, insert });
   }
-  return changes.length > 0 ? { changes } : null;
+
+  if (changes.length === 0) return null;
+  return caret === null ? { changes } : { changes, selection: { anchor: caret } };
 }
 
 /** The task the cursor is sitting on, or null if it is not on one. */

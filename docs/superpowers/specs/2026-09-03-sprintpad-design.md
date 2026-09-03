@@ -250,3 +250,29 @@ pressing Enter and walking away leaves an ordinary blank line.
 
 This also gives blank lines a real indent level in the grammar, since stepping
 out one level at a time requires knowing how deep the empty line sits.
+
+
+---
+
+## Addendum 4: two fixes around a freshly opened task
+
+**Tab did nothing on a new task.** `changeIndent` skipped blank lines, so the
+natural sequence -- Enter to open a task, Tab to nest it -- did nothing at all.
+A single empty line now indents; blank lines inside a multi-line selection are
+still skipped, so indenting a block does not fill its spacers with whitespace.
+
+Fixing that exposed a second bug underneath. On an empty line the cursor sits
+exactly where the indent gets inserted, and CodeMirror left it to the *left* of
+the new whitespace -- so the next character typed landed before the indent,
+silently producing a top-level task with trailing spaces. `changeIndent` now
+places the caret explicitly when it re-indents an empty line.
+
+**A typed `[` sat next to the checkbox.** Muscle memory types `[]` at the head
+of a task. `[] foo` already parsed as a task, but the half-typed `[` did not --
+it rendered as literal text beside the box. `markerInput.ts` absorbs the old
+ceremony (`[] ` and `[ ] `, one keystroke at a time) at the head of an empty
+task, with a second `[` typing the real character for tasks that genuinely
+start with a bracket.
+
+The absorbing run lives in a StateField and ends on any other input or cursor
+move, so it can only ever swallow a contiguous marker at the position it began.
