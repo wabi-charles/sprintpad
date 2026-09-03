@@ -42,6 +42,8 @@ const doneLine = Decoration.line({ class: "sp-line sp-line--done" });
 const openLine = Decoration.line({ class: "sp-line sp-line--task" });
 const headerLine = Decoration.line({ class: "sp-line sp-line--header" });
 const focusedLine = Decoration.line({ class: "sp-line--focused" });
+/** Hides the `# ` that makes a header a header. */
+const hideMarker = Decoration.replace({});
 
 function build(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
@@ -63,11 +65,18 @@ function build(view: EditorView): DecorationSet {
         builder.add(line.from, line.from, focusedLine);
       }
       if (parsed.kind === "task") {
+        const widget = new CheckboxWidget(parsed.completed);
+        // An open task carries no marker text, so the box is inserted rather
+        // than substituted -- which is the whole point of the bare-line form.
         builder.add(
           line.from + parsed.markerFrom,
           line.from + parsed.markerTo,
-          Decoration.replace({ widget: new CheckboxWidget(parsed.completed) }),
+          parsed.markerFrom === parsed.markerTo
+            ? Decoration.widget({ widget, side: -1 })
+            : Decoration.replace({ widget }),
         );
+      } else if (parsed.kind === "header") {
+        builder.add(line.from + parsed.markerFrom, line.from + parsed.markerTo, hideMarker);
       }
 
       pos = line.to + 1;

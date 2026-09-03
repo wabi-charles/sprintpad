@@ -183,3 +183,47 @@ ending the session themselves.
 `⌘D` deliberately does nothing on a header line. "Convert lines to tasks" in the
 command palette is the explicit way to turn bare lines into tasks, which keeps
 one key from carrying two meanings.
+
+
+---
+
+## Addendum 2: the grammar was inverted
+
+Originally a task needed `[]` and any bare line was a header. In use, typing
+the brackets was the friction the product exists to remove, so the rule is now
+the other way round:
+
+- Any non-empty line is an open task.
+- `# ` makes a header.
+- `[x] ` marks completion — written by ⌘D or the checkbox, never typed.
+
+Consequences worth recording:
+
+**§16 mostly dissolved.** Pasting bare lines needs no conversion at all, so
+`transformPastedText` shrank to widening markdown and unicode checkboxes. The
+`atLineStart` context it needed is gone.
+
+**Enter got simpler.** With no marker to continue, it only carries indentation
+down; on an empty indented line it clears the indent, which is how you step
+back out of a nested group.
+
+**The focus anchor had to move.** It sat at the start of the task text, which
+for a bare task is the line start -- a boundary position. Moving a neighbouring
+line past the focused one then slid the anchor silently onto the wrong task
+rather than dropping it. The anchor now sits one character into the text, which
+is strictly interior, so deletion is detected and the title fallback runs. A
+regression test asserts the anchor drops rather than retargets.
+
+**Stored documents needed a migration.** A v1 document's bare lines meant
+"header" and would otherwise have been silently reinterpreted as tasks.
+`migrateLegacyDoc` rewrites them to `# `, run exactly once behind a
+`sprintpad.docVersion` key -- it cannot be idempotent, so the guard is the
+correctness argument, not a convenience.
+
+**`convertToTasks` became `toggleHeader`.** Bare lines are already tasks; the
+thing you now need a command for is the header.
+
+Two smaller fixes from the same pass: `Esc` closes the command palette from a
+window-level handler, because clicking inside the palette moves focus to the
+body and the input's own handler stopped seeing the key; and the top bar keeps
+only `⌘K`, with today's focus reachable through it.

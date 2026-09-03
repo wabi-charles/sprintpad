@@ -1,5 +1,5 @@
 import type { EditorState, Line, TransactionSpec } from "@codemirror/state";
-import { INDENT_UNIT, indentTextFor, markerFor, parseLine } from "./grammar";
+import { HEADER_MARKER, indentTextFor, markerFor, parseLine } from "./grammar";
 
 /**
  * Editing logic as pure `(state) -> TransactionSpec | null` functions. Keeping
@@ -42,8 +42,9 @@ function targetOf(line: Line): TaskTarget | null {
 }
 
 /**
- * Enter. Continues the list, splits a task at the cursor, or -- on an empty
- * marker -- strips it, which is how you get back out of the list.
+ * Enter. A new line is already a task, so this only has to carry the
+ * indentation down -- and on an empty indented line, clear it instead, which
+ * is how you step back out of a nested group.
  */
 export function newTaskLine(state: EditorState): TransactionSpec | null {
   const range = state.selection.main;
@@ -51,9 +52,9 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
 
   const line = state.doc.lineAt(range.head);
   const parsed = parseLine(line.text);
-  if (parsed.kind !== "task") return null;
 
-  if (parsed.text.trim() === "") {
+  if (line.text.trim() === "") {
+    if (parsed.indentText === "") return null;
     return {
       changes: { from: line.from, to: line.to, insert: "" },
       selection: { anchor: line.from },
@@ -62,13 +63,13 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
 
   const offset = range.head - line.from;
   // Inside or before the marker, Enter should just push the line down.
-  if (offset <= parsed.markerTo) return null;
+  if (offset <= parsed.markerTo && parsed.markerTo > 0) return null;
+  if (offset < parsed.indentText.length) return null;
 
-  const tail = line.text.slice(offset).replace(/^[ \t]+/, "");
-  const prefix = `${INDENT_UNIT.repeat(parsed.indent)}[] `;
+  const indent = indentTextFor(parsed.indent);
   return {
-    changes: { from: range.head, to: line.to, insert: `\n${prefix}${tail}` },
-    selection: { anchor: range.head + 1 + prefix.length },
+    changes: { from: range.head, insert: `\n${indent}` },
+    selection: { anchor: range.head + 1 + indent.length },
   };
 }
 
@@ -147,20 +148,24 @@ export function nextOpenTaskAfter(state: EditorState, pos: number): TaskTarget |
 }
 
 /**
- * Palette action. Typing a bare line leaves a header by design, so this is the
- * explicit way to say "these are tasks" without retyping the markers.
+ * Palette action. Headers are the one thing bare typing cannot produce, so
+ * this is the discoverable route to them alongside typing `# `.
  */
-export function convertToTasks(state: EditorState): TransactionSpec | null {
-  const changes = [];
-  for (const line of touchedLines(state)) {
-    const parsed = parseLine(line.text);
-    if (parsed.kind !== "header") continue;
-    changes.push({
-      from: line.from + parsed.indentText.length,
-      to: line.from + parsed.indentText.length,
-      insert: "[] ",
-    });
-  }
+export function toggleHeader(state: EditorState): TransactionSpec | null {
+  const lines = touchedLines(state)
+    .map((line) => ({ line, parsed: parseLine(line.text) }))
+    .filter(({ parsed }) => parsed.kind !== "blank");
+  if (lines.length === 0) return null;
+
+  const toHeader = !lines.every(({ parsed }) => parsed.kind === "header");
+  const changes = lines
+    .filter(({ parsed }) => (parsed.kind === "header") !== toHeader)
+    .map(({ line, parsed }) => ({
+      from: line.from + parsed.markerFrom,
+      to: line.from + parsed.markerTo,
+      insert: toHeader ? HEADER_MARKER : "",
+    }));
+
   return changes.length > 0 ? { changes } : null;
 }
 

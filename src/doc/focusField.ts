@@ -6,9 +6,11 @@ import { parseLine } from "./grammar";
  * rewritten and reordered underneath it. Rather than inventing task ids, we
  * lean on CodeMirror: a position mapped through every transaction.
  *
- * The anchor sits on the first character of the task text -- inside the line,
- * but outside the marker span, so completing or re-indenting the task does not
- * disturb it while deleting the line does (TrackDel then yields null).
+ * The anchor sits one character into the task text: past the marker span, so
+ * completing or re-indenting the task leaves it alone, but strictly inside the
+ * line, so anything that deletes the line -- including CodeMirror rewriting it
+ * to move a neighbour past -- makes TrackDel yield null instead of silently
+ * sliding the anchor onto whichever task takes its place.
  */
 
 export const setFocusAnchor = StateEffect.define<number | null>();
@@ -24,9 +26,10 @@ export const focusAnchorField = StateField.define<number | null>({
   },
 });
 
-/** The anchor position for a task line: the start of its text. */
+/** The anchor position for a task line: one character into its text. */
 export function anchorForLine(line: Line): number {
-  return line.from + parseLine(line.text).markerTo;
+  const parsed = parseLine(line.text);
+  return line.from + parsed.markerTo + (parsed.text.length > 0 ? 1 : 0);
 }
 
 /** The anchored line, if it is still a task. */

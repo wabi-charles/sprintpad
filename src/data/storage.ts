@@ -1,3 +1,4 @@
+import { migrateLegacyDoc } from "../doc/grammar";
 import type { TimerMode, TimerState } from "../focus/timer";
 import type { FocusRecord } from "./history";
 
@@ -35,8 +36,15 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
+/**
+ * Bumped when the meaning of the document text changes, so a stored document
+ * is reinterpreted deliberately rather than silently.
+ */
+export const DOC_VERSION = 2;
+
 export const KEYS = {
   doc: "sprintpad.doc",
+  docVersion: "sprintpad.docVersion",
   settings: "sprintpad.settings",
   history: "sprintpad.history",
   session: "sprintpad.session",
@@ -109,12 +117,24 @@ export function createStore(backend: StorageLike) {
   }
 
   return {
+    /** Migrates a v1 document on the way out, exactly once. */
     loadDoc(): string | null {
-      return readRaw(KEYS.doc);
+      const doc = readRaw(KEYS.doc);
+      if (doc === null) return null;
+
+      const stored = Number(readRaw(KEYS.docVersion) ?? "1");
+      const version = Number.isFinite(stored) ? stored : 1;
+      if (version >= DOC_VERSION) return doc;
+
+      const migrated = migrateLegacyDoc(doc);
+      writeRaw(KEYS.doc, migrated);
+      writeRaw(KEYS.docVersion, String(DOC_VERSION));
+      return migrated;
     },
 
     saveDoc(doc: string): void {
       writeRaw(KEYS.doc, doc);
+      writeRaw(KEYS.docVersion, String(DOC_VERSION));
     },
 
     loadSettings(): Settings {

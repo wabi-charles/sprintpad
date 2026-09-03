@@ -71,16 +71,15 @@ export function createEditor(hooks: EditorHooks) {
   );
 
   /**
-   * §16: a multi-line paste of bare text becomes tasks. Anything already
-   * carrying markers is inserted verbatim so in-app copy/paste is lossless.
+   * §16: pasted plain lines are already tasks; this only widens markdown and
+   * unicode checkboxes. Anything canonical is left to paste verbatim, so
+   * in-app copy/paste stays lossless.
    */
   const pasteHandler = EditorView.domEventHandlers({
     paste(event, view) {
       const raw = event.clipboardData?.getData("text/plain");
       if (!raw) return false;
-      const range = view.state.selection.main;
-      const atLineStart = range.from === view.state.doc.lineAt(range.from).from;
-      const transformed = transformPastedText(raw, { atLineStart });
+      const transformed = transformPastedText(raw);
       if (transformed === null) return false;
       event.preventDefault();
       view.dispatch(view.state.replaceSelection(transformed));
@@ -107,7 +106,7 @@ export function createEditor(hooks: EditorHooks) {
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
         EditorState.tabSize.of(INDENT_UNIT.length),
         EditorView.lineWrapping,
-        placeholder("Type a task, or paste a list…"),
+        placeholder("Type a task…"),
         pasteHandler,
         baseTheme,
         themeCompartment.of(EditorView.theme({}, { dark: false })),

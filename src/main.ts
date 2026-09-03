@@ -1,6 +1,6 @@
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { createEditor } from "./doc/editor";
-import { clearCompleted, convertToTasks, type TaskTarget } from "./doc/edits";
+import { clearCompleted, toggleHeader, type TaskTarget } from "./doc/edits";
 import { focusAnchorField, resolveFocusedLine } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
 import { appendRecord, type FocusRecord } from "./data/history";
@@ -32,15 +32,15 @@ import "./styles.css";
  */
 
 const STARTER_DOC = [
-  "TODAY",
-  "[] Put the cursor on this line and press ⌘Enter to start focusing",
-  "[] Press Enter to add a task, ⌘D to complete one",
-  "  [] Tab indents, ⇧Tab outdents",
-  "[] ⌘↑ and ⌘↓ move a task — position is priority",
+  "# TODAY",
+  "Put the cursor on this line and press ⌘Enter to start focusing",
+  "Press Enter to add a task, ⌘D to complete one",
+  "  Tab indents, ⇧Tab outdents",
+  "⌘↑ and ⌘↓ move a task — position is priority",
   "",
-  "OTHER",
-  "[] Paste a list of plain lines and they become tasks",
-  "[] Press ⌘K for everything else",
+  "# BACKLOG",
+  "Start a line with # to make a header, like these two",
+  "Press ⌘K for everything else",
 ].join("\n");
 
 const TICK_MS = 250;
@@ -326,7 +326,7 @@ function buildCommands(): PaletteCommand[] {
       : []),
     { id: "move-up", label: "Move task up", hint: "⌘↑", run: () => editor.moveLineUp() },
     { id: "move-down", label: "Move task down", hint: "⌘↓", run: () => editor.moveLineDown() },
-    { id: "convert", label: "Convert lines to tasks", run: editorCommand(convertToTasks) },
+    { id: "header", label: "Toggle header", run: editorCommand(toggleHeader) },
     { id: "clear", label: "Clear completed tasks", run: editorCommand(clearCompleted) },
     { id: "search", label: "Search", hint: "⌘F", run: () => editor.openSearch() },
     { id: "undo", label: "Undo", hint: "⌘Z", run: () => editor.undo() },
@@ -372,10 +372,7 @@ if (stored) {
   editor.restoreFocus(session.anchor, session.taskText);
 }
 
-barActions.append(
-  barButton("Today", () => history.open(() => editor.focus())),
-  barButton("⌘K", openPalette),
-);
+barActions.append(barButton("⌘K", openPalette));
 
 function barButton(label: string, run: () => void): HTMLButtonElement {
   const button = document.createElement("button");
@@ -389,7 +386,13 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
   const mod = event.metaKey || event.ctrlKey;
-  if (mod && event.key.toLowerCase() === "k") {
+  if (event.key === "Escape" && (palette.isOpen || history.isOpen)) {
+    // Handled here rather than on the dialogs themselves: clicking inside one
+    // moves focus to the body, and Escape has to keep working from there.
+    event.preventDefault();
+    if (palette.isOpen) palette.close();
+    else history.close();
+  } else if (mod && event.key.toLowerCase() === "k") {
     event.preventDefault();
     openPalette();
   } else if (mod && event.shiftKey && event.code === "Space") {

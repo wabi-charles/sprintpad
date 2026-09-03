@@ -19,24 +19,25 @@ and the focus highlight are painted over it, so copy, paste, undo and export
 behave exactly like a text editor's.
 
 ```text
-TODAY
-[] Highrise - Claude data setup
+# TODAY
+Highrise - Claude data setup
 [x] Pay taxes
-  [] A subtask, indented two spaces
+  A subtask, indented two spaces
 
-OTHER
-[] Anything else
+# BACKLOG
+Anything else
 ```
 
-- A line starting with `[]` or `[x]` is a task.
-- Any other non-empty line is a header. No syntax to learn; `HIGHRISE` and
-  `# Highrise` both work.
+- **Every line is a task.** Just type. There are no markers to remember.
+- A line starting with `#` is a header.
+- `[x] ` marks a task complete, but you never type it — `⌘D` and the checkbox
+  write it for you.
 - Indentation is two spaces per level.
 - **Position is priority.** There are no priority fields — move the important
   thing to the top.
 
-Pasting several plain lines at once turns them into tasks. Pasting Sprintpad
-content back in leaves it exactly as it was.
+Paste a list of plain lines and they are simply tasks. Pasting a markdown
+checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood.
 
 ## Keys
 
@@ -45,6 +46,7 @@ content back in leaves it exactly as it was.
 | New task | `Enter` |
 | Start focus on the task at the cursor | `⌘Enter` |
 | Complete task | `⌘D` |
+| Make a line a header | type `# `, or "Toggle header" in `⌘K` |
 | Move task up / down | `⌘↑` / `⌘↓` (or `⌥↑` / `⌥↓`) |
 | Indent / outdent | `Tab` / `⇧Tab` |
 | Undo / redo | `⌘Z` / `⇧⌘Z` |
@@ -54,7 +56,7 @@ content back in leaves it exactly as it was.
 | End session | `Esc` while the timer has focus |
 
 Everything else — focus duration, break length, dark mode, today's focus
-history, export and import — lives in the command palette.
+history, export and import — lives in the command palette. `Esc` closes it.
 
 ## Focus sessions
 

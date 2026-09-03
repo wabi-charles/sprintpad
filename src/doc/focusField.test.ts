@@ -12,7 +12,7 @@ import {
 } from "./focusField";
 import { parseLine } from "./grammar";
 
-const DOC = "TODAY\n[] first\n[] focused\n[] third";
+const DOC = "# TODAY\nfirst\nfocused\nthird";
 
 /** A state focused on the "focused" task, with the cursor on that line too. */
 function focusedState(doc = DOC, taskText = "focused"): EditorState {
@@ -52,25 +52,25 @@ describe("focus anchor", () => {
 
   it("follows text inserted above it", () => {
     const state = focusedState();
-    const next = state.update({ changes: { from: 0, insert: "NEW HEADER\n[] added\n" } }).state;
+    const next = state.update({ changes: { from: 0, insert: "# NEW HEADER\nadded\n" } }).state;
     expect(focusedText(next)).toBe("focused");
   });
 
   it("is unmoved by edits below it", () => {
     const state = focusedState();
-    const next = state.update({ changes: { from: state.doc.length, insert: "\n[] later" } }).state;
+    const next = state.update({ changes: { from: state.doc.length, insert: "\nlater" } }).state;
     expect(focusedText(next)).toBe("focused");
   });
 
   it("follows the task when it is moved up", () => {
     const moved = runCommand(focusedState(), moveLineUp);
-    expect(moved.doc.toString()).toBe("TODAY\n[] focused\n[] first\n[] third");
+    expect(moved.doc.toString()).toBe("# TODAY\nfocused\nfirst\nthird");
     expect(focusedText(moved)).toBe("focused");
   });
 
   it("follows the task when it is moved down", () => {
     const moved = runCommand(focusedState(), moveLineDown);
-    expect(moved.doc.toString()).toBe("TODAY\n[] first\n[] third\n[] focused");
+    expect(moved.doc.toString()).toBe("# TODAY\nfirst\nthird\nfocused");
     expect(focusedText(moved)).toBe("focused");
   });
 
@@ -80,8 +80,11 @@ describe("focus anchor", () => {
     const state = focusedState();
     const cursorOnThird = state.update({ selection: { anchor: state.doc.length } }).state;
     const moved = runCommand(cursorOnThird, moveLineUp);
-    expect(moved.doc.toString()).toBe("TODAY\n[] first\n[] third\n[] focused");
-    expect(resolveFocusedLine(moved, "focused")?.text).toBe("[] focused");
+    expect(moved.doc.toString()).toBe("# TODAY\nfirst\nthird\nfocused");
+    // The anchor must drop rather than slide onto the task that took its
+    // place -- pointing at the wrong task is worse than losing the position.
+    expect(focusedText(moved)).toBeNull();
+    expect(resolveFocusedLine(moved, "focused")?.text).toBe("focused");
   });
 
   it("survives completing the focused task", () => {
@@ -94,7 +97,7 @@ describe("focus anchor", () => {
   it("survives indenting the focused task", () => {
     const state = focusedState();
     const next = state.update(changeIndent(state, 1)!).state;
-    expect(next.doc.toString()).toContain("  [] focused");
+    expect(next.doc.toString()).toContain("  focused");
     expect(focusedText(next)).toBe("focused");
   });
 
@@ -131,7 +134,7 @@ describe("reanchorTo", () => {
     const reattached = moved.update({ effects: setFocusAnchor.of(anchor) }).state;
     expect(focusedText(reattached)).toBe("focused");
     // And tracking works again from there.
-    const edited = reattached.update({ changes: { from: 0, insert: "[] added\n" } }).state;
+    const edited = reattached.update({ changes: { from: 0, insert: "added\n" } }).state;
     expect(focusedText(edited)).toBe("focused");
   });
 
@@ -160,8 +163,8 @@ describe("resolveFocusedLine", () => {
     const state = focusedState();
     const line = anchoredLine(state)!;
     const cut = state.update({ changes: { from: line.from - 1, to: line.to } }).state;
-    const repasted = cut.update({ changes: { from: cut.doc.length, insert: "\n[] focused" } }).state;
-    expect(resolveFocusedLine(repasted, "focused")?.text).toBe("[] focused");
+    const repasted = cut.update({ changes: { from: cut.doc.length, insert: "\nfocused" } }).state;
+    expect(resolveFocusedLine(repasted, "focused")?.text).toBe("focused");
   });
 
   it("returns null when the task is really gone", () => {

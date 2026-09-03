@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_SETTINGS, createStore, debounce, type StorageLike } from "./storage";
+import { DEFAULT_SETTINGS, DOC_VERSION, createStore, debounce, type StorageLike } from "./storage";
 
 function fakeBackend(seed: Record<string, string> = {}): StorageLike & { data: Record<string, string> } {
   const data = { ...seed };
@@ -30,6 +30,39 @@ describe("document persistence", () => {
     const backend = fakeBackend();
     createStore(backend).saveDoc("");
     expect(createStore(backend).loadDoc()).toBe("");
+  });
+
+  it("stamps the document version on save", () => {
+    const backend = fakeBackend();
+    createStore(backend).saveDoc("one");
+    expect(backend.data["sprintpad.docVersion"]).toBe(String(DOC_VERSION));
+  });
+});
+
+describe("document migration", () => {
+  it("reinterprets an unversioned v1 document, where bare lines were headers", () => {
+    const backend = fakeBackend({ "sprintpad.doc": "TODAY\n[] one\n[x] two" });
+    expect(createStore(backend).loadDoc()).toBe("# TODAY\none\n[x] two");
+  });
+
+  it("writes the result back so the migration only ever runs once", () => {
+    const backend = fakeBackend({ "sprintpad.doc": "TODAY\n[] one" });
+    createStore(backend).loadDoc();
+    expect(backend.data["sprintpad.docVersion"]).toBe(String(DOC_VERSION));
+    expect(createStore(backend).loadDoc()).toBe("# TODAY\none");
+  });
+
+  it("leaves a current document untouched", () => {
+    const backend = fakeBackend({
+      "sprintpad.doc": "# TODAY\none",
+      "sprintpad.docVersion": String(DOC_VERSION),
+    });
+    expect(createStore(backend).loadDoc()).toBe("# TODAY\none");
+  });
+
+  it("treats a corrupt version stamp as legacy rather than skipping the migration", () => {
+    const backend = fakeBackend({ "sprintpad.doc": "TODAY", "sprintpad.docVersion": "junk" });
+    expect(createStore(backend).loadDoc()).toBe("# TODAY");
   });
 });
 
