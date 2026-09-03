@@ -307,3 +307,29 @@ also made several editor methods dead -- `openSearch`, `undo`, `redo`,
 `moveLineUp`, `moveLineDown`, `taskAtCursor` -- which were deleted along with
 their imports. The key bindings for those actions live in the keymap and are
 untouched.
+
+
+---
+
+## Addendum 6: header clicks, and where settings live
+
+**Clicking a header put the cursor on the line below it.** `.sp-line--header`
+had `margin-top`, and CodeMirror maps a click to a document position by
+measuring line boxes -- a margin sits *outside* that box, so every header click
+resolved about 12px low. It is now `padding-top`, which is inside the box.
+
+The declaration also had to move into the CodeMirror theme in `editor.ts`. The
+generated theme matches `.cm-line` at the same specificity as a plain class
+selector in `styles.css`, so the same rule written there silently lost. Any
+future line-box geometry belongs next to that rule, not in the stylesheet.
+
+**Export and import are gone**, at the user's call: the document is plain text,
+so selecting and copying it is the export. `data/transfer.ts` is deleted along
+with the `getDoc`/`setDoc` editor methods that only it used. §19 listed them as
+strongly desirable, not required.
+
+**Timer settings became a panel.** Focus length, break length and count-up were
+three palette entries driven by `window.prompt`, which blocks the page, is
+silently unavailable in some embedded contexts, and cannot show the current
+value while you change it. They are now one entry opening a small panel that
+commits on input. The palette is down to five.

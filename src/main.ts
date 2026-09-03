@@ -5,7 +5,6 @@ import { focusAnchorField, resolveFocusedLine } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
 import { appendRecord, type FocusRecord } from "./data/history";
 import { createStore, debounce, type Settings } from "./data/storage";
-import { exportDoc, importDoc } from "./data/transfer";
 import { createNotifier } from "./focus/notifications";
 import { createFocusPanel, type PanelView } from "./focus/panel";
 import {
@@ -23,6 +22,7 @@ import {
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
 import { createHistoryView } from "./ui/historyView";
 import { createPalette, type PaletteCommand } from "./ui/palette";
+import { createSettingsView } from "./ui/settingsView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
 
@@ -100,6 +100,7 @@ const panel = createFocusPanel(focusHost, {
 });
 
 const history = createHistoryView(app, () => log);
+const timerSettings = createSettingsView(app, () => settings, updateSettings);
 const palette = createPalette(app, buildCommands);
 
 // ---------------------------------------------------------------- session ---
@@ -251,14 +252,6 @@ function render(): void {
 
 // -------------------------------------------------------------- commands ---
 
-function askMinutes(label: string, current: number): number | null {
-  const answer = window.prompt(label, String(Math.round(current / 60)));
-  if (answer === null) return null;
-  const minutes = Number(answer.trim());
-  if (!Number.isFinite(minutes) || minutes <= 0) return null;
-  return Math.round(minutes * 60);
-}
-
 function updateSettings(patch: Partial<Settings>): void {
   settings = { ...settings, ...patch };
   store.saveSettings(settings);
@@ -279,51 +272,18 @@ function editorCommand(produce: (state: EditorState) => TransactionSpec | null) 
  * screen during a session stays out of it, so the list is short enough to read.
  */
 function buildCommands(): PaletteCommand[] {
-  const focusLength =
-    settings.mode === "countup" ? "counting up" : `${Math.round(settings.focusSec / 60)} min`;
-
   return [
     { id: "header", label: "Toggle header", run: editorCommand(toggleHeader) },
     { id: "clear", label: "Clear completed tasks", run: editorCommand(clearCompleted) },
     { id: "history", label: "Today's focus", run: () => history.open(() => editor.focus()) },
-    {
-      id: "duration",
-      label: `Focus duration: ${focusLength}…`,
-      run: () => {
-        const seconds = askMinutes("Focus length in minutes", settings.focusSec);
-        if (seconds !== null) updateSettings({ mode: "countdown", focusSec: seconds });
-      },
-    },
-    {
-      id: "countup",
-      label: settings.mode === "countup" ? "Count down instead" : "Count up instead",
-      run: () =>
-        updateSettings({ mode: settings.mode === "countup" ? "countdown" : "countup" }),
-    },
-    {
-      id: "break",
-      label: `Break length: ${Math.round(settings.breakSec / 60)} min…`,
-      run: () => {
-        const seconds = askMinutes("Break length in minutes", settings.breakSec);
-        if (seconds !== null) updateSettings({ breakSec: seconds });
-      },
-    },
+    { id: "timer", label: "Timer settings", run: () => timerSettings.open(() => editor.focus()) },
     { id: "theme", label: "Toggle dark mode", run: () => updateSettings({ theme: theme.toggle() }) },
-    { id: "export", label: "Export as Markdown", run: () => exportDoc(editor.getDoc()) },
-    {
-      id: "import",
-      label: "Import from file…",
-      run: async () => {
-        const text = await importDoc();
-        if (text !== null) editor.setDoc(text);
-        editor.focus();
-      },
-    },
   ];
 }
 
 function openPalette(): void {
   if (history.isOpen) history.close();
+  if (timerSettings.isOpen) timerSettings.close();
   palette.open(() => editor.focus());
 }
 
@@ -349,12 +309,13 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
   const mod = event.metaKey || event.ctrlKey;
-  if (event.key === "Escape" && (palette.isOpen || history.isOpen)) {
+  if (event.key === "Escape" && (palette.isOpen || history.isOpen || timerSettings.isOpen)) {
     // Handled here rather than on the dialogs themselves: clicking inside one
     // moves focus to the body, and Escape has to keep working from there.
     event.preventDefault();
     if (palette.isOpen) palette.close();
-    else history.close();
+    else if (history.isOpen) history.close();
+    else timerSettings.close();
   } else if (mod && event.key.toLowerCase() === "k") {
     event.preventDefault();
     openPalette();

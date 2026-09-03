@@ -44,7 +44,8 @@ Anything else
   thing to the top.
 
 Paste a list of plain lines and they are simply tasks. Pasting a markdown
-checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood.
+checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood. To get
+your list out, select it and copy — it is plain text.
 
 ## Keys
 
@@ -63,14 +64,16 @@ checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood.
 | Pause / resume | `Space` while the timer has focus, or `⇧⌘Space` anywhere |
 | End session | `Esc` while the timer has focus |
 
-The command palette (`⌘K`, `Esc` to close) holds the nine things with no other
-route: toggle header, clear completed tasks, today's focus, focus duration,
-count up, break length, dark mode, export and import. Anything you can already
-reach with a key — or with a button on screen during a session — deliberately
-stays out of it.
+The command palette (`⌘K`, `Esc` to close) holds the five things with no other
+route: toggle header, clear completed tasks, today's focus, timer settings and
+dark mode. Anything you can already reach with a key — or with a button on
+screen during a session — deliberately stays out of it.
+
+**Timer settings** is where focus length, break length and count-up live.
 
 Notifications are on by default and are controlled through your browser's own
-per-site settings.
+per-site settings. There is no export or import: the document is plain text,
+so select it and copy.
 
 ## Focus sessions
 

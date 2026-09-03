@@ -40,6 +40,16 @@ const baseTheme = EditorView.theme({
   },
   ".cm-content": { caretColor: "var(--sp-accent)" },
   ".cm-line": { padding: "0 4px" },
+  /*
+   * Header spacing lives here, next to the rule it competes with: CodeMirror's
+   * generated theme matches `.cm-line` at the same specificity as a plain class
+   * selector, so the same declaration in styles.css silently lost.
+   *
+   * It must also be padding rather than margin -- CodeMirror maps a click to a
+   * document position by measuring line boxes, and a margin falls outside that
+   * box, which put every click on a header onto the line below it.
+   */
+  ".cm-line.sp-line--header": { paddingTop: "1.1em" },
 });
 
 export function createEditor(hooks: EditorHooks) {
@@ -169,14 +179,6 @@ export function createEditor(hooks: EditorHooks) {
 
     focus(): void {
       view.focus();
-    },
-
-    getDoc(): string {
-      return view.state.doc.toString();
-    },
-
-    setDoc(doc: string): void {
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: doc } });
     },
 
     setDark(dark: boolean): void {
