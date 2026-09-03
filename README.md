@@ -94,6 +94,16 @@ task early ends the session and tells you what it cost:
 17 minutes focused
 ```
 
+## Deploying
+
+Pushing to `main` builds and publishes to GitHub Pages via
+`.github/workflows/deploy.yml`. The workflow runs the tests first, so a failing
+suite blocks the deploy.
+
+The custom domain lives in `public/CNAME`, which Vite copies into `dist/`.
+Changing the domain means changing that file — the Pages setting alone is not
+enough, since each deploy overwrites it.
+
 ## Development
 
 ```bash
