@@ -1,7 +1,7 @@
 import { defaultKeymap, history, historyKeymap, moveLineDown, moveLineUp } from "@codemirror/commands";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
-import { EditorView, keymap, placeholder } from "@codemirror/view";
+import { EditorView, drawSelection, keymap, placeholder } from "@codemirror/view";
 import { deleteLineHead, indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
 import { sprintpadDecorations } from "./decorations";
 import { completeLineAt, focusTargetAt, nextOpenTaskAfter, toggleDone, type TaskTarget } from "./edits";
@@ -38,7 +38,11 @@ const baseTheme = EditorView.theme({
     lineHeight: "1.75",
     padding: "8px 0 40vh",
   },
-  ".cm-content": { caretColor: "var(--sp-accent)" },
+  ".cm-content": { caretColor: "transparent" },
+  ".cm-cursor, .cm-dropCursor": {
+    borderLeft: "1.5px solid var(--sp-accent)",
+    marginLeft: "0",
+  },
   ".cm-line": { padding: "0 4px" },
   /*
    * Header spacing lives here, next to the rule it competes with: CodeMirror's
@@ -143,6 +147,13 @@ export function createEditor(hooks: EditorHooks) {
       doc: hooks.doc,
       extensions: [
         history(),
+        /*
+         * The browser sizes a native caret from the text around it, so on an
+         * empty line -- where there is none -- it stretched to the full 1.75
+         * line-height and sat higher than the text, reading as a cursor
+         * floating between two tasks. CodeMirror draws its own instead.
+         */
+        drawSelection(),
         search({ top: true }),
         highlightSelectionMatches(),
         focusAnchorField,

@@ -350,3 +350,28 @@ same place on screen. On an unindented line both therefore unwrap, or backspace
 would sometimes join lines instead for no visible reason. On an indented line
 the caret before the marker is visibly at the indent, so that position still
 outdents.
+
+
+---
+
+## Addendum 8: the cursor on an empty line
+
+Two reports -- "the cursor is super big after Enter" and "the cursor sits
+halfway between one task and another" -- were the same thing.
+
+We were using the browser's native caret. A browser sizes it from the text
+around it, and a freshly opened task has none: the only inline content is the
+checkbox widget. So the caret fell back to the full line box, 1.75 line-heights
+tall, starting above where the text would sit. Taller than every other caret,
+and high enough to read as floating between two rows.
+
+`drawSelection()` makes CodeMirror draw the cursor itself, at a consistent
+17.5px on empty and text lines alike, positioned inside the line box. The
+native caret is hidden with `caret-color: transparent`.
+
+A third report -- "Backspace deletes the task, it should just move the cursor
+back like Notion" -- turned out to be the same bug wearing a different hat.
+Backspace on an empty task already removed the line and put the cursor at the
+end of the previous task; it was impossible to *see* that, because the caret
+was drawn in the wrong place. No behaviour change was needed, which is worth
+recording: the fix for a reported behaviour bug was a rendering fix.
