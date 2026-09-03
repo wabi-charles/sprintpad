@@ -69,7 +69,9 @@ export function parseLine(line: string): ParsedLine {
   if (line.trim() === "") {
     return {
       kind: "blank",
-      indent: 0,
+      // Blank lines carry a level too: Enter steps out of a nested group one
+      // level at a time, so it has to know how deep the empty line sits.
+      indent: indentLevel(line),
       indentText: line,
       completed: false,
       text: "",

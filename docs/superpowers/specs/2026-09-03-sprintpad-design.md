@@ -227,3 +227,26 @@ Two smaller fixes from the same pass: `Esc` closes the command palette from a
 window-level handler, because clicking inside the palette moves focus to the
 body and the input's own handler stopped seeing the key; and the top bar keeps
 only `⌘K`, with today's focus reachable through it.
+
+
+---
+
+## Addendum 3: Enter behaves like a bullet list
+
+Enter now opens the next task *visibly* -- an empty checkbox waiting for text --
+and pressing it again on that empty line steps back out one indent level at a
+time, dropping the checkbox at the left margin.
+
+The design problem: an empty line and a blank spacer between groups are the
+same characters. "This empty line is a freshly opened task" cannot live in the
+document without writing a marker into it, and a marker would survive the user
+walking away -- leaving stray `[] ` lines in the saved text.
+
+So it lives in editor state instead, as `pendingTaskField`: the position of the
+one empty line currently showing a waiting checkbox. It is cleared the moment
+the line stops being empty, the cursor moves off it, or the line is deleted, so
+it cannot outlive the moment it describes. The document text stays clean --
+pressing Enter and walking away leaves an ordinary blank line.
+
+This also gives blank lines a real indent level in the grammar, since stepping
+out one level at a time requires knowing how deep the empty line sits.

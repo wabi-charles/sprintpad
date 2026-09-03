@@ -9,6 +9,7 @@ import {
   toggleDone,
   toggleHeader,
 } from "./edits";
+import { pendingTaskField, pendingTaskLine, setPendingTask } from "./pendingTask";
 
 /** Builds a state with the cursor at `|`, or a selection between `|` and `|`. */
 function stateOf(marked: string): EditorState {
@@ -17,7 +18,17 @@ function stateOf(marked: string): EditorState {
   const doc = marked.replace(/\|/g, "");
   const anchor = first;
   const head = second === -1 ? first : second - 1;
-  return EditorState.create({ doc, selection: { anchor, head } });
+  return EditorState.create({ doc, selection: { anchor, head }, extensions: [pendingTaskField] });
+}
+
+/** The same, with the cursor's (empty) line marked as a freshly opened task. */
+function pendingStateOf(marked: string): EditorState {
+  const state = stateOf(marked);
+  const next = state.update({
+    effects: setPendingTask.of(state.doc.lineAt(state.selection.main.head).from),
+  }).state;
+  if (pendingTaskLine(next) === null) throw new Error("fixture did not take a pending task");
+  return next;
 }
 
 function apply(marked: string, fn: (s: EditorState) => any): string {
@@ -28,36 +39,56 @@ function apply(marked: string, fn: (s: EditorState) => any): string {
 }
 
 describe("newTaskLine", () => {
-  it("carries the indentation down, and nothing else", () => {
-    expect(apply("one|", newTaskLine)).toBe("one\n");
-    expect(apply("  one|", newTaskLine)).toBe("  one\n  ");
+  it("opens a new task and marks it as the waiting one", () => {
+    const state = stateOf("one|");
+    const next = state.update(newTaskLine(state)!).state;
+    expect(next.doc.toString()).toBe("one\n");
+    expect(pendingTaskLine(next)).toBe(4);
   });
 
-  it("puts the cursor after the new indentation", () => {
+  it("carries the indentation down", () => {
     const state = stateOf("  one|");
     const next = state.update(newTaskLine(state)!).state;
+    expect(next.doc.toString()).toBe("  one\n  ");
     expect(next.selection.main.head).toBe(next.doc.length);
+    expect(pendingTaskLine(next)).toBe(6);
   });
 
-  it("splits a task when the cursor is mid-text", () => {
-    expect(apply("one| two", newTaskLine)).toBe("one\n two");
-    expect(apply("  one| two", newTaskLine)).toBe("  one\n   two");
+  it("splits a task when the cursor is mid-text, with nothing left waiting", () => {
+    const state = stateOf("one| two");
+    const next = state.update(newTaskLine(state)!).state;
+    expect(next.doc.toString()).toBe("one\n two");
+    expect(pendingTaskLine(next)).toBeNull();
   });
 
-  it("does not carry a completed marker onto the new line", () => {
+  it("does not carry a completed or header marker onto the new line", () => {
     expect(apply("[x] done|", newTaskLine)).toBe("[x] done\n");
-  });
-
-  it("does not carry a header marker onto the new line", () => {
     expect(apply("# BACKLOG|", newTaskLine)).toBe("# BACKLOG\n");
   });
 
-  it("clears the indent on an empty indented line, stepping back out", () => {
-    expect(apply("one\n  |", newTaskLine)).toBe("one\n");
+  it("steps out one indent level at a time on the waiting task", () => {
+    const state = pendingStateOf("one\n    |");
+    const once = state.update(newTaskLine(state)!).state;
+    expect(once.doc.toString()).toBe("one\n  ");
+    expect(once.selection.main.head).toBe(once.doc.length);
+    expect(pendingTaskLine(once)).toBe(4);
+
+    const twice = once.update(newTaskLine(once)!).state;
+    expect(twice.doc.toString()).toBe("one\n");
+    expect(pendingTaskLine(twice)).toBe(4);
   });
 
-  it("defers to the editor default on an empty unindented line", () => {
+  it("drops the checkbox at the left margin, leaving plain blank space", () => {
+    const state = pendingStateOf("one\n|");
+    const next = state.update(newTaskLine(state)!).state;
+    expect(next.doc.toString()).toBe("one\n");
+    expect(next.selection.main.head).toBe(4);
+    expect(pendingTaskLine(next)).toBeNull();
+  });
+
+  it("defers to the editor default on a blank line that is not waiting", () => {
     expect(newTaskLine(stateOf("one\n|"))).toBeNull();
+    expect(newTaskLine(stateOf("one\n  |"))).toBeNull();
   });
 
   it("defers to the editor default inside a marker", () => {
@@ -67,6 +98,30 @@ describe("newTaskLine", () => {
 
   it("defers to the editor default when text is selected", () => {
     expect(newTaskLine(stateOf("|one| two"))).toBeNull();
+  });
+});
+
+describe("the waiting task placeholder", () => {
+  it("is dropped as soon as the line has text", () => {
+    const state = pendingStateOf("one\n|");
+    const typed = state.update({ changes: { from: 4, insert: "t" }, selection: { anchor: 5 } }).state;
+    expect(pendingTaskLine(typed)).toBeNull();
+  });
+
+  it("is dropped when the cursor moves to another line", () => {
+    const state = pendingStateOf("one\n|");
+    expect(pendingTaskLine(state.update({ selection: { anchor: 0 } }).state)).toBeNull();
+  });
+
+  it("is dropped when the line is deleted", () => {
+    const state = pendingStateOf("one\n|");
+    expect(pendingTaskLine(state.update({ changes: { from: 3, to: 4 } }).state)).toBeNull();
+  });
+
+  it("follows edits above it", () => {
+    const state = pendingStateOf("one\n|");
+    const next = state.update({ changes: { from: 0, insert: "zero\n" } }).state;
+    expect(pendingTaskLine(next)).toBe(9);
   });
 });
 

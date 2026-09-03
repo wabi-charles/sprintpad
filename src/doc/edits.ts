@@ -1,5 +1,6 @@
 import type { EditorState, Line, TransactionSpec } from "@codemirror/state";
 import { HEADER_MARKER, indentTextFor, markerFor, parseLine } from "./grammar";
+import { pendingTaskLine, setPendingTask } from "./pendingTask";
 
 /**
  * Editing logic as pure `(state) -> TransactionSpec | null` functions. Keeping
@@ -42,9 +43,13 @@ function targetOf(line: Line): TaskTarget | null {
 }
 
 /**
- * Enter. A new line is already a task, so this only has to carry the
- * indentation down -- and on an empty indented line, clear it instead, which
- * is how you step back out of a nested group.
+ * Enter, behaving like a bullet list: it opens a fresh task and shows you the
+ * waiting checkbox. Pressing it again on that empty task steps back out --
+ * one indent level at a time, and at the left margin it drops the checkbox
+ * and leaves you on a plain blank line.
+ *
+ * A blank line that is *not* the pending one is ordinary whitespace, so Enter
+ * there does what Enter does in any text editor.
  */
 export function newTaskLine(state: EditorState): TransactionSpec | null {
   const range = state.selection.main;
@@ -54,10 +59,16 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
   const parsed = parseLine(line.text);
 
   if (line.text.trim() === "") {
-    if (parsed.indentText === "") return null;
+    if (pendingTaskLine(state) !== line.from) return null;
+
+    if (parsed.indent === 0) {
+      return { effects: setPendingTask.of(null) };
+    }
+    const indent = indentTextFor(parsed.indent - 1);
     return {
-      changes: { from: line.from, to: line.to, insert: "" },
-      selection: { anchor: line.from },
+      changes: { from: line.from, to: line.to, insert: indent },
+      selection: { anchor: line.from + indent.length },
+      effects: setPendingTask.of(line.from),
     };
   }
 
@@ -67,9 +78,11 @@ export function newTaskLine(state: EditorState): TransactionSpec | null {
   if (offset < parsed.indentText.length) return null;
 
   const indent = indentTextFor(parsed.indent);
+  const opensEmptyLine = line.text.slice(offset).trim() === "";
   return {
     changes: { from: range.head, insert: `\n${indent}` },
     selection: { anchor: range.head + 1 + indent.length },
+    effects: opensEmptyLine ? setPendingTask.of(range.head + 1) : undefined,
   };
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@codemirror/view";
 import { anchoredLine, focusAnchorField } from "./focusField";
 import { parseLine } from "./grammar";
+import { pendingTaskField, pendingTaskLine } from "./pendingTask";
 
 /**
  * All of Sprintpad's visual richness is painted over plain text: the document
@@ -48,6 +49,7 @@ const hideMarker = Decoration.replace({});
 function build(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   const focused = anchoredLine(view.state);
+  const pending = pendingTaskLine(view.state);
 
   for (const { from, to } of view.visibleRanges) {
     let pos = from;
@@ -55,8 +57,12 @@ function build(view: EditorView): DecorationSet {
       const line = view.state.doc.lineAt(pos);
       const parsed = parseLine(line.text);
 
+      // An empty line that Enter just opened is drawn as a waiting task, so
+      // the list behaves like a bullet list without marking up the text.
+      const waiting = parsed.kind === "blank" && pending === line.from;
+
       // Line decorations sort ahead of the replacement at the same position.
-      if (parsed.kind === "task") {
+      if (parsed.kind === "task" || waiting) {
         builder.add(line.from, line.from, parsed.completed ? doneLine : openLine);
       } else if (parsed.kind === "header") {
         builder.add(line.from, line.from, headerLine);
@@ -64,7 +70,9 @@ function build(view: EditorView): DecorationSet {
       if (focused && focused.from === line.from) {
         builder.add(line.from, line.from, focusedLine);
       }
-      if (parsed.kind === "task") {
+      if (waiting) {
+        builder.add(line.to, line.to, Decoration.widget({ widget: new CheckboxWidget(false), side: -1 }));
+      } else if (parsed.kind === "task") {
         const widget = new CheckboxWidget(parsed.completed);
         // An open task carries no marker text, so the box is inserted rather
         // than substituted -- which is the whole point of the bare-line form.
@@ -103,7 +111,10 @@ export function sprintpadDecorations(onToggle: (view: EditorView, pos: number) =
         const focusChanged =
           update.startState.field(focusAnchorField, false) !==
           update.state.field(focusAnchorField, false);
-        if (update.docChanged || update.viewportChanged || focusChanged) {
+        const pendingChanged =
+          update.startState.field(pendingTaskField, false) !==
+          update.state.field(pendingTaskField, false);
+        if (update.docChanged || update.viewportChanged || focusChanged || pendingChanged) {
           this.decorations = build(update.view);
         }
       }

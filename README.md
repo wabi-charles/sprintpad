@@ -29,6 +29,11 @@ Anything else
 ```
 
 - **Every line is a task.** Just type. There are no markers to remember.
+- `Enter` opens the next task and shows you an empty checkbox, like a bullet
+  list. Press it again on that empty line to step back out one indent level at
+  a time; at the left margin the checkbox goes away and you have plain blank
+  space. Nothing is written to the file until you type, so an abandoned line
+  leaves no stray marker behind.
 - A line starting with `#` is a header.
 - `[x] ` marks a task complete, but you never type it — `⌘D` and the checkbox
   write it for you.
@@ -44,6 +49,7 @@ checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood.
 | Action | Key |
 | --- | --- |
 | New task | `Enter` |
+| Step back out of a nested task | `Enter` again on the empty line |
 | Start focus on the task at the cursor | `⌘Enter` |
 | Complete task | `⌘D` |
 | Make a line a header | type `# `, or "Toggle header" in `⌘K` |

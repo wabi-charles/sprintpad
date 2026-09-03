@@ -13,6 +13,7 @@ import {
   setFocusAnchor,
 } from "./focusField";
 import { INDENT_UNIT, parseLine } from "./grammar";
+import { pendingTaskField } from "./pendingTask";
 import { transformPastedText } from "./paste";
 
 export interface EditorHooks {
@@ -96,6 +97,7 @@ export function createEditor(hooks: EditorHooks) {
         search({ top: true }),
         highlightSelectionMatches(),
         focusAnchorField,
+        pendingTaskField,
         sprintpadDecorations((clicked, pos) => {
           // Toggle the clicked line without disturbing the real selection.
           const at = clicked.state.update({ selection: { anchor: pos } }).state;
