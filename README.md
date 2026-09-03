@@ -104,6 +104,29 @@ The custom domain lives in `public/CNAME`, which Vite copies into `dist/`.
 Changing the domain means changing that file — the Pages setting alone is not
 enough, since each deploy overwrites it.
 
+### DNS for sprintpad.app
+
+Managed at Porkbun. Delete the parking records first (the `207.207.210.x` A
+records and the `www` record pointing at `pixie.porkbun.com`), then add:
+
+| Type | Host | Value |
+| --- | --- | --- |
+| A | `@` | `185.199.108.153` |
+| A | `@` | `185.199.109.153` |
+| A | `@` | `185.199.110.153` |
+| A | `@` | `185.199.111.153` |
+| AAAA | `@` | `2606:50c0:8000::153` |
+| AAAA | `@` | `2606:50c0:8001::153` |
+| AAAA | `@` | `2606:50c0:8002::153` |
+| AAAA | `@` | `2606:50c0:8003::153` |
+| CNAME | `www` | `wabi-charles.github.io.` |
+
+`.app` is on the HSTS preload list, so HTTPS is not optional — browsers refuse
+the site outright without a valid certificate, rather than warning. GitHub
+issues one automatically once DNS resolves, which can take up to 24 hours.
+**Enforce HTTPS** in Settings → Pages stays greyed out until then; it must be
+ticked once available.
+
 ## Development
 
 ```bash
