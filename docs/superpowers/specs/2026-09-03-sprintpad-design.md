@@ -282,3 +282,28 @@ showing, pressing `[` produced no visible change at all, and the natural
 response is to press it again -- which is exactly the escape hatch, so you get
 a literal bracket. Absorbing now also marks the line as the pending task, so
 the checkbox appears on the first press. One key, one visible task.
+
+
+---
+
+## Addendum 5: the palette got too long to read
+
+It had grown to nineteen entries (twenty-three mid-session), which defeats the
+point -- a list that long is slower to scan than the shortcut it replaces.
+
+The rule now: **the palette holds only what has no other route.** Anything
+reachable by a key the user already knows (⌘Enter, ⌘D, ⌘↑/↓, Tab, ⌘Z, ⌘F) or by
+a button already on screen during a session is out. That removed start focus,
+complete, pause, stop, move up, move down, search, undo and redo.
+
+The six focus-duration presets collapsed into one prompt whose label carries the
+current value (`Focus duration: 50 min…`) plus a count-up toggle. The
+notifications toggle went entirely: the browser already owns notification
+permission per site, so an in-app switch was a second control for the same
+thing.
+
+Nine commands remain, and they fit on screen without scrolling. Removing them
+also made several editor methods dead -- `openSearch`, `undo`, `redo`,
+`moveLineUp`, `moveLineDown`, `taskAtCursor` -- which were deleted along with
+their imports. The key bindings for those actions live in the keymap and are
+untouched.

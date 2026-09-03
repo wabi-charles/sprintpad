@@ -138,13 +138,6 @@ function startFocus(target: TaskTarget): void {
   render();
 }
 
-/** Starts focus on whatever the cursor is on; used by ⌘K. */
-function startFocusAtCursor(): void {
-  const target = editor.taskAtCursor();
-  if (target) startFocus(target);
-  else editor.focus();
-}
-
 function logSession(completed: boolean): FocusRecord | null {
   if (!session) return null;
   const record = toRecord(session, Date.now(), completed);
@@ -280,72 +273,42 @@ function editorCommand(produce: (state: EditorState) => TransactionSpec | null) 
   };
 }
 
-function durationCommands(): PaletteCommand[] {
-  const presets = [25, 50, 60, 90];
-  const commands: PaletteCommand[] = presets.map((minutes) => ({
-    id: `duration-${minutes}`,
-    label: `Focus duration: ${minutes} minutes`,
-    hint: settings.mode === "countdown" && settings.focusSec === minutes * 60 ? "current" : undefined,
-    run: () => updateSettings({ mode: "countdown", focusSec: minutes * 60 }),
-  }));
-
-  commands.push({
-    id: "duration-custom",
-    label: "Focus duration: custom…",
-    run: () => {
-      const seconds = askMinutes("Focus length in minutes", settings.focusSec);
-      if (seconds !== null) updateSettings({ mode: "countdown", focusSec: seconds });
-    },
-  });
-  commands.push({
-    id: "duration-countup",
-    label: "Focus duration: count up",
-    hint: settings.mode === "countup" ? "current" : undefined,
-    run: () => updateSettings({ mode: "countup" }),
-  });
-  commands.push({
-    id: "break-custom",
-    label: `Break length: ${Math.round(settings.breakSec / 60)} minutes…`,
-    run: () => {
-      const seconds = askMinutes("Break length in minutes", settings.breakSec);
-      if (seconds !== null) updateSettings({ breakSec: seconds });
-    },
-  });
-  return commands;
-}
-
+/**
+ * The palette holds what has no other route. Anything reachable by a key you
+ * already know -- ⌘Enter, ⌘D, ⌘↑/↓, Tab, ⌘Z, ⌘F -- or by a button already on
+ * screen during a session stays out of it, so the list is short enough to read.
+ */
 function buildCommands(): PaletteCommand[] {
+  const focusLength =
+    settings.mode === "countup" ? "counting up" : `${Math.round(settings.focusSec / 60)} min`;
+
   return [
-    { id: "focus", label: "Start focus on current task", hint: "⌘⏎", run: startFocusAtCursor },
-    ...(session
-      ? [
-          { id: "focus-done", label: "Complete focused task", run: completeFocusedTask },
-          { id: "focus-pause", label: "Pause or resume timer", hint: "Space", run: () => mutate(togglePause) },
-          { id: "focus-stop", label: "Stop focus session", run: () => endSession(false) },
-        ]
-      : []),
-    { id: "move-up", label: "Move task up", hint: "⌘↑", run: () => editor.moveLineUp() },
-    { id: "move-down", label: "Move task down", hint: "⌘↓", run: () => editor.moveLineDown() },
     { id: "header", label: "Toggle header", run: editorCommand(toggleHeader) },
     { id: "clear", label: "Clear completed tasks", run: editorCommand(clearCompleted) },
-    { id: "search", label: "Search", hint: "⌘F", run: () => editor.openSearch() },
-    { id: "undo", label: "Undo", hint: "⌘Z", run: () => editor.undo() },
-    { id: "redo", label: "Redo", hint: "⇧⌘Z", run: () => editor.redo() },
     { id: "history", label: "Today's focus", run: () => history.open(() => editor.focus()) },
-    ...durationCommands(),
     {
-      id: "theme",
-      label: "Toggle dark mode",
-      run: () => updateSettings({ theme: theme.toggle() }),
-    },
-    {
-      id: "notifications",
-      label: settings.notifications ? "Turn notifications off" : "Turn notifications on",
+      id: "duration",
+      label: `Focus duration: ${focusLength}…`,
       run: () => {
-        updateSettings({ notifications: !settings.notifications });
-        void notifier.request();
+        const seconds = askMinutes("Focus length in minutes", settings.focusSec);
+        if (seconds !== null) updateSettings({ mode: "countdown", focusSec: seconds });
       },
     },
+    {
+      id: "countup",
+      label: settings.mode === "countup" ? "Count down instead" : "Count up instead",
+      run: () =>
+        updateSettings({ mode: settings.mode === "countup" ? "countdown" : "countup" }),
+    },
+    {
+      id: "break",
+      label: `Break length: ${Math.round(settings.breakSec / 60)} min…`,
+      run: () => {
+        const seconds = askMinutes("Break length in minutes", settings.breakSec);
+        if (seconds !== null) updateSettings({ breakSec: seconds });
+      },
+    },
+    { id: "theme", label: "Toggle dark mode", run: () => updateSettings({ theme: theme.toggle() }) },
     { id: "export", label: "Export as Markdown", run: () => exportDoc(editor.getDoc()) },
     {
       id: "import",

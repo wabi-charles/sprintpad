@@ -1,5 +1,5 @@
-import { defaultKeymap, history, historyKeymap, moveLineDown, moveLineUp, redo, undo } from "@codemirror/commands";
-import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from "@codemirror/search";
+import { defaultKeymap, history, historyKeymap, moveLineDown, moveLineUp } from "@codemirror/commands";
+import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
@@ -212,38 +212,12 @@ export function createEditor(hooks: EditorHooks) {
       view.dispatch({ effects: setFocusAnchor.of(line ? anchorForLine(line) : null) });
     },
 
-    taskAtCursor(): TaskTarget | null {
-      return focusTargetAt(view.state);
-    },
-
     /** Marks a line complete and parks the cursor on the next open task (§13). */
     completeAt(pos: number): void {
       const spec = completeLineAt(view.state, pos);
       if (spec) view.dispatch({ ...spec, userEvent: "input" });
       const next = nextOpenTaskAfter(view.state, pos);
       if (next) view.dispatch({ selection: { anchor: next.to }, scrollIntoView: true });
-      view.focus();
-    },
-
-    openSearch(): void {
-      openSearchPanel(view);
-    },
-
-    undo(): void {
-      undo(view);
-    },
-
-    redo(): void {
-      redo(view);
-    },
-
-    moveLineUp(): void {
-      moveLineUp(view);
-      view.focus();
-    },
-
-    moveLineDown(): void {
-      moveLineDown(view);
       view.focus();
     },
   };

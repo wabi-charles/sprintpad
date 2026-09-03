@@ -63,8 +63,14 @@ checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood.
 | Pause / resume | `Space` while the timer has focus, or `⇧⌘Space` anywhere |
 | End session | `Esc` while the timer has focus |
 
-Everything else — focus duration, break length, dark mode, today's focus
-history, export and import — lives in the command palette. `Esc` closes it.
+The command palette (`⌘K`, `Esc` to close) holds the nine things with no other
+route: toggle header, clear completed tasks, today's focus, focus duration,
+count up, break length, dark mode, export and import. Anything you can already
+reach with a key — or with a button on screen during a session — deliberately
+stays out of it.
+
+Notifications are on by default and are controlled through your browser's own
+per-site settings.
 
 ## Focus sessions
 
