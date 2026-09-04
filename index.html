@@ -9,5 +9,16 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+
+    <!--
+      GoatCounter. No cookies, and nothing from the document is sent: the app
+      is a single page, so the only path ever recorded is "/". Localhost and
+      private networks are ignored by count.js, so development is not counted.
+    -->
+    <script
+      data-goatcounter="https://sprintpad.goatcounter.com/count"
+      async
+      src="//gc.zgo.at/count.js"
+    ></script>
   </body>
 </html>

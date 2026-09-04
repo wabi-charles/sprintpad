@@ -148,3 +148,8 @@ directly: `src/doc/grammar.ts` and `paste.ts` (the line grammar),
 `src/data/` (storage and history). `src/main.ts` is wiring only.
 
 Storage is `localStorage`, per browser. There is no account and no server.
+
+The deployed site loads [GoatCounter](https://www.goatcounter.com) for pageview
+counts — no cookies, and nothing from your document leaves the browser: the app
+is a single page, so the only path it can record is `/`. `count.js` ignores
+localhost and private networks, so development is never counted.
