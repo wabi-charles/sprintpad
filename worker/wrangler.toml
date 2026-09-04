@@ -2,8 +2,9 @@ name = "sprintpad-sync"
 main = "index.js"
 compatibility_date = "2026-01-01"
 
-# Create the namespace once, then paste its id here:
-#   npx wrangler kv namespace create PADS
+# A namespace id, not a secret: it is useless without access to the Cloudflare
+# account that owns it. Deploying your own means replacing it with your own,
+# created by: npx wrangler kv namespace create PADS
 [[kv_namespaces]]
 binding = "PADS"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "9a6226c810ed4b0ebdc822dfb23b5bda"
