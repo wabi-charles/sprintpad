@@ -529,3 +529,59 @@ body {
 .sp-settings__check input {
   accent-color: var(--sp-accent);
 }
+
+/* --------------------------------------------------------- shortcuts ----- */
+
+.sp-shortcuts {
+  width: min(30rem, 100% - 32px);
+  max-height: 72vh;
+  overflow: auto;
+  padding: 18px 22px 22px;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-bg-elev);
+  box-shadow: var(--sp-shadow);
+  outline: none;
+}
+
+.sp-shortcuts__title {
+  margin: 18px 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-shortcuts__title:first-child {
+  margin-top: 0;
+}
+
+.sp-shortcuts__list {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.sp-shortcuts__list dt {
+  text-align: right;
+}
+
+.sp-shortcuts__list dd {
+  margin: 0;
+  color: var(--sp-fg-dim);
+}
+
+.sp-shortcuts__list kbd {
+  display: inline-block;
+  border: 1px solid var(--sp-border);
+  border-radius: 5px;
+  background: var(--sp-bg);
+  padding: 1px 6px;
+  color: var(--sp-fg);
+  font-family: var(--sp-font-clock);
+  font-size: 11px;
+  white-space: nowrap;
+}

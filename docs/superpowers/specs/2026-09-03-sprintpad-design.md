@@ -375,3 +375,29 @@ Backspace on an empty task already removed the line and put the cursor at the
 end of the previous task; it was impossible to *see* that, because the caret
 was drawn in the wrong place. No behaviour change was needed, which is worth
 recording: the fix for a reported behaviour bug was a rendering fix.
+
+
+---
+
+## Addendum 9: palette order, no history, a shortcut sheet
+
+**Ordered by expected use** rather than by category: timer settings, clear
+completed tasks, dark mode, turn into header. Four entries do not need
+alphabetising or grouping; they need the common one first.
+
+The header entry reads "Turn into header" or "Turn into task" depending on the
+line the cursor is on, since a label that describes the outcome beats one that
+describes the mechanism.
+
+**Focus history is removed** (§17, and the §19 "strongly desirable" list). It
+was a read-only table nobody had asked to read. Deleting the view made the
+whole chain dead -- `data/history.ts`, the stored log, `toRecord`,
+`formatDurationShort` -- so all of it went. The "17 minutes focused" line after
+a session is unaffected: it comes from `totalFocusedSec` on the live session,
+not from the log.
+
+**`⌘/` opens a shortcut sheet**, with a matching button in the top bar. For a
+product whose pitch is "keyboard-first", the keys are the product, and leaving
+them to be discovered by accident was the wrong bet. `?` would have been the
+conventional key, but every keystroke here goes into a document, so it has to
+be a modifier chord.

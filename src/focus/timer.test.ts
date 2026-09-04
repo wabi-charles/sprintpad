@@ -3,7 +3,6 @@ import {
   elapsedSec,
   formatClock,
   formatDurationLong,
-  formatDurationShort,
   isExpired,
   pauseTimer,
   remainingSec,
@@ -95,10 +94,4 @@ describe("duration formatting", () => {
     expect(formatDurationLong(3600)).toBe("1 hour");
   });
 
-  it("writes compact values for the history table", () => {
-    expect(formatDurationShort(52 * 60)).toBe("52m");
-    expect(formatDurationShort(5640)).toBe("1h 34m");
-    expect(formatDurationShort(7200)).toBe("2h");
-    expect(formatDurationShort(30)).toBe("0m");
-  });
 });

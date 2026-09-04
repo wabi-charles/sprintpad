@@ -1,6 +1,5 @@
 import { migrateLegacyDoc } from "../doc/grammar";
 import type { TimerMode, TimerState } from "../focus/timer";
-import type { FocusRecord } from "./history";
 
 /**
  * Everything Sprintpad remembers, in localStorage. Reads are defensive: a
@@ -46,7 +45,6 @@ export const KEYS = {
   doc: "sprintpad.doc",
   docVersion: "sprintpad.docVersion",
   settings: "sprintpad.settings",
-  history: "sprintpad.history",
   session: "sprintpad.session",
 } as const;
 
@@ -73,18 +71,6 @@ function isTimerState(value: unknown): value is TimerState {
     typeof t.startedAt === "number" &&
     typeof t.accumulatedSec === "number" &&
     typeof t.running === "boolean"
-  );
-}
-
-function isFocusRecord(value: unknown): value is FocusRecord {
-  if (typeof value !== "object" || value === null) return false;
-  const r = value as Record<string, unknown>;
-  return (
-    typeof r.id === "string" &&
-    typeof r.taskText === "string" &&
-    typeof r.startedAt === "number" &&
-    typeof r.seconds === "number" &&
-    typeof r.completed === "boolean"
   );
 }
 
@@ -157,16 +143,6 @@ export function createStore(backend: StorageLike) {
 
     saveSettings(settings: Settings): void {
       writeRaw(KEYS.settings, JSON.stringify(settings));
-    },
-
-    loadHistory(): FocusRecord[] {
-      const stored = readJson<unknown>(KEYS.history);
-      if (!Array.isArray(stored)) return [];
-      return stored.filter(isFocusRecord);
-    },
-
-    saveHistory(log: readonly FocusRecord[]): void {
-      writeRaw(KEYS.history, JSON.stringify(log));
     },
 
     loadSession(): PersistedSession | null {

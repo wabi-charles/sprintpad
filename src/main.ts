@@ -3,7 +3,6 @@ import { createEditor } from "./doc/editor";
 import { clearCompleted, toggleHeader, type TaskTarget } from "./doc/edits";
 import { focusAnchorField, resolveFocusedLine } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
-import { appendRecord, type FocusRecord } from "./data/history";
 import { createStore, debounce, type Settings } from "./data/storage";
 import { createNotifier } from "./focus/notifications";
 import { createFocusPanel, type PanelView } from "./focus/panel";
@@ -14,15 +13,14 @@ import {
   fromPersisted,
   isBreakOver,
   keepWorking,
-  toRecord,
   togglePause,
   totalFocusedSec,
   type FocusSession,
 } from "./focus/session";
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
-import { createHistoryView } from "./ui/historyView";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
+import { createShortcutsView } from "./ui/shortcutsView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
 
@@ -49,7 +47,6 @@ const FINISHED_MS = 5000;
 
 const store = createStore(window.localStorage);
 let settings: Settings = store.loadSettings();
-let log: FocusRecord[] = store.loadHistory();
 let session: FocusSession | null = null;
 let finished: { task: string; focused: string; until: number } | null = null;
 let announcedExpiry: string | null = null;
@@ -99,8 +96,8 @@ const panel = createFocusPanel(focusHost, {
   endBreak: () => endSession(false),
 });
 
-const history = createHistoryView(app, () => log);
 const timerSettings = createSettingsView(app, () => settings, updateSettings);
+const shortcuts = createShortcutsView(app);
 const palette = createPalette(app, buildCommands);
 
 // ---------------------------------------------------------------- session ---
@@ -122,7 +119,7 @@ function mutate(transition: (current: FocusSession, now: number) => FocusSession
 }
 
 function startFocus(target: TaskTarget): void {
-  if (session) logSession(false);
+  if (session) endSession(false);
   const now = Date.now();
   session = beginSession({
     taskText: target.text,
@@ -139,24 +136,12 @@ function startFocus(target: TaskTarget): void {
   render();
 }
 
-function logSession(completed: boolean): FocusRecord | null {
-  if (!session) return null;
-  const record = toRecord(session, Date.now(), completed);
-  const next = appendRecord(log, record);
-  if (next.length !== log.length) {
-    log = next;
-    store.saveHistory(log);
-  }
-  return record;
-}
-
 function endSession(completed: boolean): void {
   if (!session) return;
-  const record = logSession(completed);
-  if (completed && record) {
+  if (completed) {
     finished = {
       task: session.taskText,
-      focused: formatDurationLong(record.seconds),
+      focused: formatDurationLong(totalFocusedSec(session, Date.now())),
       until: Date.now() + FINISHED_MS,
     };
   }
@@ -272,19 +257,31 @@ function editorCommand(produce: (state: EditorState) => TransactionSpec | null) 
  * screen during a session stays out of it, so the list is short enough to read.
  */
 function buildCommands(): PaletteCommand[] {
+  const cursorLine = editor.view.state.doc.lineAt(editor.view.state.selection.main.head);
+  const onHeader = parseLine(cursorLine.text).kind === "header";
+
   return [
-    { id: "header", label: "Toggle header", run: editorCommand(toggleHeader) },
-    { id: "clear", label: "Clear completed tasks", run: editorCommand(clearCompleted) },
-    { id: "history", label: "Today's focus", run: () => history.open(() => editor.focus()) },
     { id: "timer", label: "Timer settings", run: () => timerSettings.open(() => editor.focus()) },
+    { id: "clear", label: "Clear completed tasks", run: editorCommand(clearCompleted) },
     { id: "theme", label: "Toggle dark mode", run: () => updateSettings({ theme: theme.toggle() }) },
+    {
+      id: "header",
+      label: onHeader ? "Turn into task" : "Turn into header",
+      run: editorCommand(toggleHeader),
+    },
   ];
 }
 
 function openPalette(): void {
-  if (history.isOpen) history.close();
   if (timerSettings.isOpen) timerSettings.close();
+  if (shortcuts.isOpen) shortcuts.close();
   palette.open(() => editor.focus());
+}
+
+function openShortcuts(): void {
+  if (palette.isOpen) palette.close();
+  if (timerSettings.isOpen) timerSettings.close();
+  shortcuts.open(() => editor.focus());
 }
 
 // ----------------------------------------------------------------- setup ---
@@ -295,7 +292,7 @@ if (stored) {
   editor.restoreFocus(session.anchor, session.taskText);
 }
 
-barActions.append(barButton("⌘K", openPalette));
+barActions.append(barButton("⌘/", openShortcuts), barButton("⌘K", openPalette));
 
 function barButton(label: string, run: () => void): HTMLButtonElement {
   const button = document.createElement("button");
@@ -309,16 +306,19 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
   const mod = event.metaKey || event.ctrlKey;
-  if (event.key === "Escape" && (palette.isOpen || history.isOpen || timerSettings.isOpen)) {
+  if (event.key === "Escape" && (palette.isOpen || timerSettings.isOpen || shortcuts.isOpen)) {
     // Handled here rather than on the dialogs themselves: clicking inside one
     // moves focus to the body, and Escape has to keep working from there.
     event.preventDefault();
     if (palette.isOpen) palette.close();
-    else if (history.isOpen) history.close();
-    else timerSettings.close();
+    else if (timerSettings.isOpen) timerSettings.close();
+    else shortcuts.close();
   } else if (mod && event.key.toLowerCase() === "k") {
     event.preventDefault();
     openPalette();
+  } else if (mod && event.key === "/") {
+    event.preventDefault();
+    openShortcuts();
   } else if (mod && event.shiftKey && event.code === "Space") {
     event.preventDefault();
     mutate(togglePause);

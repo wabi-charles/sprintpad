@@ -68,11 +68,3 @@ export function formatDurationLong(totalSec: number): string {
   return rest === 0 ? plural(hours, "hour") : `${plural(hours, "hour")} ${plural(rest, "minute")}`;
 }
 
-/** Compact, for the history table (§17). */
-export function formatDurationShort(totalSec: number): string {
-  const minutes = Math.floor(Math.max(0, totalSec) / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
-}

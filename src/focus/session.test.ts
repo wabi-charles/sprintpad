@@ -8,7 +8,6 @@ import {
   keepWorking,
   pauseSession,
   resumeSession,
-  toRecord,
   togglePause,
   totalFocusedSec,
 } from "./session";
@@ -106,23 +105,6 @@ describe("breaks", () => {
     const back = keepWorking(resting, "countdown", 3000, sec(660));
     expect(back.bankedSec).toBe(60);
     expect(totalFocusedSec(back, sec(720))).toBe(120);
-  });
-});
-
-describe("toRecord", () => {
-  it("captures the whole session for history", () => {
-    const record = toRecord(start(), sec(1020), true);
-    expect(record).toMatchObject({
-      taskText: "Claude data setup",
-      startedAt: T0,
-      seconds: 1020,
-      completed: true,
-    });
-  });
-
-  it("excludes break time from the logged total", () => {
-    const resting = beginBreak(expireIfDue(start(60), sec(60)), 600, sec(60));
-    expect(toRecord(resting, sec(400), false).seconds).toBe(60);
   });
 });
 

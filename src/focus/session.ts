@@ -1,4 +1,3 @@
-import type { FocusRecord } from "../data/history";
 import type { PersistedSession, SessionPhase } from "../data/storage";
 import {
   elapsedSec,
@@ -115,16 +114,6 @@ export function beginBreak(
 export function totalFocusedSec(session: FocusSession, now: number): number {
   const live = isFocusPhase(session.phase) ? elapsedSec(session.timer, now) : 0;
   return session.bankedSec + live;
-}
-
-export function toRecord(session: FocusSession, now: number, completed: boolean): FocusRecord {
-  return {
-    id: session.id,
-    taskText: session.taskText,
-    startedAt: session.startedAt,
-    seconds: totalFocusedSec(session, now),
-    completed,
-  };
 }
 
 /** Restores a persisted session, tolerating an older shape without bankedSec. */

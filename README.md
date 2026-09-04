@@ -62,13 +62,16 @@ your list out, select it and copy — it is plain text.
 | Undo / redo | `⌘Z` / `⇧⌘Z` |
 | Search | `⌘F` |
 | Command palette | `⌘K` |
+| Keyboard shortcuts | `⌘/` |
 | Pause / resume | `Space` while the timer has focus, or `⇧⌘Space` anywhere |
 | End session | `Esc` while the timer has focus |
 
-The command palette (`⌘K`, `Esc` to close) holds the five things with no other
-route: toggle header, clear completed tasks, today's focus, timer settings and
-dark mode. Anything you can already reach with a key — or with a button on
-screen during a session — deliberately stays out of it.
+The command palette (`⌘K`, `Esc` to close) holds the four things with no other
+route, ordered by how often you reach for them: timer settings, clear completed
+tasks, dark mode, turn into header. Anything you can already reach with a key —
+or with a button on screen during a session — deliberately stays out of it.
+
+`⌘/` (or the button in the top bar) lists every shortcut.
 
 **Timer settings** is where focus length, break length and count-up live.
 

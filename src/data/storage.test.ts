@@ -93,23 +93,6 @@ describe("settings", () => {
   });
 });
 
-describe("history", () => {
-  it("round-trips records and drops malformed ones", () => {
-    const backend = fakeBackend();
-    createStore(backend).saveHistory([
-      { id: "a", taskText: "one", startedAt: 1, seconds: 60, completed: false },
-    ]);
-    expect(createStore(backend).loadHistory()).toHaveLength(1);
-
-    const corrupt = fakeBackend({ "sprintpad.history": '[{"id":"a"},{"nope":true}]' });
-    expect(createStore(corrupt).loadHistory()).toEqual([]);
-  });
-
-  it("returns an empty log when storage holds a non-array", () => {
-    expect(createStore(fakeBackend({ "sprintpad.history": '{"a":1}' })).loadHistory()).toEqual([]);
-  });
-});
-
 describe("session", () => {
   const session = {
     id: "s1",
