@@ -401,3 +401,14 @@ product whose pitch is "keyboard-first", the keys are the product, and leaving
 them to be discovered by accident was the wrong bet. `?` would have been the
 conventional key, but every keystroke here goes into a document, so it has to
 be a modifier chord.
+
+
+---
+
+## Addendum 10: no selection-match highlighting
+
+`highlightSelectionMatches()` tinted every other occurrence of the selected
+word. That is a code-editor affordance -- useful when you are about to rename a
+symbol, noise when you are reading a task list, where repeated words like
+"Press" or a project name are ordinary prose rather than something to track.
+Removed along with its `.cm-selectionMatch` styling.

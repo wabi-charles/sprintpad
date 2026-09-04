@@ -330,9 +330,6 @@ body {
   background: var(--sp-accent-soft) !important;
 }
 
-.cm-selectionMatch {
-  background: var(--sp-accent-soft);
-}
 
 /* ---------------------------------------------------------- overlays ----- */
 

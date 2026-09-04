@@ -1,5 +1,5 @@
 import { defaultKeymap, history, historyKeymap, moveLineDown, moveLineUp } from "@codemirror/commands";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import { search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, drawSelection, keymap, placeholder } from "@codemirror/view";
 import { deleteLineHead, indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
@@ -155,7 +155,6 @@ export function createEditor(hooks: EditorHooks) {
          */
         drawSelection(),
         search({ top: true }),
-        highlightSelectionMatches(),
         focusAnchorField,
         pendingTaskField,
         swallowedMarkerField,
