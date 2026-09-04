@@ -93,6 +93,27 @@ describe("settings", () => {
   });
 });
 
+describe("snapshots", () => {
+  it("round-trips versions", () => {
+    const backend = fakeBackend();
+    createStore(backend).saveSnapshots([{ at: 1, doc: "one" }]);
+    expect(createStore(backend).loadSnapshots()).toEqual([{ at: 1, doc: "one" }]);
+  });
+
+  it("returns an empty log for missing or malformed storage", () => {
+    expect(createStore(fakeBackend()).loadSnapshots()).toEqual([]);
+    expect(createStore(fakeBackend({ "sprintpad.snapshots": "{{{" })).loadSnapshots()).toEqual([]);
+    expect(createStore(fakeBackend({ "sprintpad.snapshots": '{"a":1}' })).loadSnapshots()).toEqual([]);
+  });
+
+  it("drops malformed entries rather than the whole log", () => {
+    const backend = fakeBackend({
+      "sprintpad.snapshots": '[{"at":1,"doc":"one"},{"at":"nope"},{"doc":"no time"}]',
+    });
+    expect(createStore(backend).loadSnapshots()).toEqual([{ at: 1, doc: "one" }]);
+  });
+});
+
 describe("session", () => {
   const session = {
     id: "s1",

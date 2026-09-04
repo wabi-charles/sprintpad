@@ -203,6 +203,20 @@ export function createEditor(hooks: EditorHooks) {
       view.focus();
     },
 
+    getDoc(): string {
+      return view.state.doc.toString();
+    },
+
+    /** Replaces the document as one undoable edit. */
+    setDoc(doc: string): void {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: doc },
+        selection: { anchor: 0 },
+        userEvent: "input",
+      });
+      view.focus();
+    },
+
     setDark(dark: boolean): void {
       view.dispatch({
         effects: themeCompartment.reconfigure(EditorView.theme({}, { dark })),

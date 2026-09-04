@@ -3,7 +3,9 @@ import { createEditor } from "./doc/editor";
 import { clearCompleted, toggleHeader, type TaskTarget } from "./doc/edits";
 import { focusAnchorField, resolveFocusedLine } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
+import { recordSnapshot, type Snapshot } from "./data/snapshots";
 import { createStore, debounce, type Settings } from "./data/storage";
+import { createChime } from "./focus/chime";
 import { createNotifier } from "./focus/notifications";
 import { createFocusPanel, type PanelView } from "./focus/panel";
 import {
@@ -21,6 +23,7 @@ import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./foc
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
 import { createShortcutsView } from "./ui/shortcutsView";
+import { createSnapshotsView } from "./ui/snapshotsView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
 
@@ -57,6 +60,7 @@ const FINISHED_MS = 5000;
 const store = createStore(window.localStorage);
 let settings: Settings = store.loadSettings();
 let session: FocusSession | null = null;
+let snapshots: Snapshot[] = store.loadSnapshots();
 let finished: { task: string; focused: string; until: number } | null = null;
 let announcedExpiry: string | null = null;
 let taskMissingSince: number | null = null;
@@ -77,17 +81,30 @@ const workpad = document.createElement("main");
 workpad.className = "sp-workpad";
 app.append(header, focusHost, workpad);
 
+const initialDoc = store.loadDoc() ?? STARTER_DOC;
+/** The last text written to storage; the candidate for the next snapshot. */
+let savedDoc = initialDoc;
+
 // The focus anchor moves with every edit, so it is saved alongside the
 // document -- otherwise a reload would resume focus on a stale line.
 const saveState = debounce((doc: string) => {
+  // Snapshot what is being replaced, not what replaces it: after a
+  // destructive edit, the state worth having back is the one before it.
+  const next = recordSnapshot(snapshots, savedDoc, Date.now());
+  if (next !== snapshots) {
+    snapshots = next;
+    store.saveSnapshots(snapshots);
+  }
+  savedDoc = doc;
   store.saveDoc(doc);
   persistSession();
 }, 300);
 const notifier = createNotifier(() => settings.notifications);
+const chime = createChime(() => settings.sound);
 
 const editor = createEditor({
   parent: workpad,
-  doc: store.loadDoc() ?? STARTER_DOC,
+  doc: initialDoc,
   onDocChange: handleDocChange,
   onStartFocus: startFocus,
   onCommandPalette: openPalette,
@@ -108,6 +125,7 @@ const panel = createFocusPanel(focusHost, {
 
 const timerSettings = createSettingsView(app, () => settings, updateSettings);
 const shortcuts = createShortcutsView(app);
+const versions = createSnapshotsView(app, () => snapshots, restoreVersion);
 const palette = createPalette(app, buildCommands);
 
 // ---------------------------------------------------------------- session ---
@@ -144,7 +162,23 @@ function startFocus(target: TaskTarget): void {
   editor.anchorTo(target.from);
   persistSession();
   void notifier.request();
+  // Started from a keypress, which is the only moment audio may be unlocked.
+  chime.prepare();
   render();
+}
+
+/**
+ * Restoring is itself an edit, so it lands in the undo history and the current
+ * text becomes a snapshot in its own right -- restoring the wrong version is
+ * recoverable too.
+ */
+function restoreVersion(doc: string): void {
+  const next = recordSnapshot(snapshots, editor.getDoc(), Date.now(), { minGapMs: 0 });
+  if (next !== snapshots) {
+    snapshots = next;
+    store.saveSnapshots(snapshots);
+  }
+  editor.setDoc(doc);
 }
 
 function endSession(completed: boolean): void {
@@ -229,9 +263,11 @@ function render(): void {
     if (session.phase === "expired" && announcedExpiry !== session.id) {
       announcedExpiry = session.id;
       notifier.notify("Focus complete", session.taskText);
+      chime.play();
     }
     if (isBreakOver(session, now)) {
       notifier.notify("Break over", "Ready for the next one.");
+      chime.play();
       endSession(false);
       return;
     }
@@ -293,12 +329,18 @@ function buildCommands(): PaletteCommand[] {
       label: onHeader ? "Turn into task" : "Turn into header",
       run: editorCommand(toggleHeader),
     },
+    {
+      id: "versions",
+      label: "Restore an earlier version…",
+      run: () => versions.open(() => editor.focus()),
+    },
   ];
 }
 
 function openPalette(): void {
   if (timerSettings.isOpen) timerSettings.close();
   if (shortcuts.isOpen) shortcuts.close();
+  if (versions.isOpen) versions.close();
   palette.open(() => editor.focus());
 }
 
@@ -323,6 +365,7 @@ function takeBreak(): void {
 function openShortcuts(): void {
   if (palette.isOpen) palette.close();
   if (timerSettings.isOpen) timerSettings.close();
+  if (versions.isOpen) versions.close();
   shortcuts.open(() => editor.focus());
 }
 
@@ -345,7 +388,8 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
   return button;
 }
 
-const anyDialogOpen = () => palette.isOpen || timerSettings.isOpen || shortcuts.isOpen;
+const anyDialogOpen = () =>
+  palette.isOpen || timerSettings.isOpen || shortcuts.isOpen || versions.isOpen;
 
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
@@ -357,7 +401,8 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (palette.isOpen) palette.close();
     else if (timerSettings.isOpen) timerSettings.close();
-    else shortcuts.close();
+    else if (shortcuts.isOpen) shortcuts.close();
+    else versions.close();
     return;
   }
 

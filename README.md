@@ -70,9 +70,9 @@ your list out, select it and copy — it is plain text.
 | Take a break | `⇧⌘B` |
 | End session | `⇧⌘.` |
 
-The command palette (`⌘K`, `Esc` to close) holds the four things with no other
+The command palette (`⌘K`, `Esc` to close) holds the five things with no other
 route, ordered by how often you reach for them: timer settings, clear completed
-tasks, dark mode, turn into header. Anything you can already reach with a key —
+tasks, dark mode, turn into header, restore an earlier version. Anything you can already reach with a key —
 or with a button on screen during a session — deliberately stays out of it.
 
 `⌘/` (or the button in the top bar) lists every shortcut.
@@ -148,6 +148,17 @@ directly: `src/doc/grammar.ts` and `paste.ts` (the line grammar),
 `src/data/` (storage and history). `src/main.ts` is wiring only.
 
 Storage is `localStorage`, per browser. There is no account and no server.
+
+**Earlier versions.** Undo only reaches back as far as the current page — a
+reload throws its history away. So the document is copied every few minutes as
+you work, keeping the last dozen states, and `⌘K → Restore an earlier version`
+brings one back. Restoring is itself an edit: it is undoable, and the text it
+replaced becomes a version of its own.
+
+**Offline.** The app installs as a PWA and its files are cached, so it opens
+without a network. Your list never needed a server; now the page doesn't
+either. A deploy is picked up on the next load rather than stranding you on a
+cached build.
 
 The deployed site loads [GoatCounter](https://www.goatcounter.com) for pageview
 counts — no cookies, and nothing from your document leaves the browser: the app

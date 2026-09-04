@@ -622,3 +622,67 @@ body {
   font-size: 11px;
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------- versions ----- */
+
+.sp-versions {
+  width: min(28rem, 100% - 32px);
+  max-height: 70vh;
+  overflow: auto;
+  padding: 18px 16px 16px;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-bg-elev);
+  box-shadow: var(--sp-shadow);
+  outline: none;
+}
+
+.sp-versions__title {
+  margin: 0 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-versions__row {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 8px 10px;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-versions__row:hover,
+.sp-versions__row:focus-visible {
+  background: var(--sp-accent-soft);
+  outline: none;
+}
+
+.sp-versions__when {
+  display: block;
+  font-size: 13px;
+  color: var(--sp-fg);
+}
+
+.sp-versions__detail {
+  display: block;
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--sp-fg-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-versions__empty {
+  margin: 0 4px;
+  color: var(--sp-fg-faint);
+  font-size: 13px;
+}

@@ -1,5 +1,6 @@
 import { migrateLegacyDoc } from "../doc/grammar";
 import type { TimerMode, TimerState } from "../focus/timer";
+import type { Snapshot } from "./snapshots";
 
 /**
  * Everything Sprintpad remembers, in localStorage. Reads are defensive: a
@@ -16,6 +17,7 @@ export interface Settings {
   breakSec: number;
   theme: ThemePreference;
   notifications: boolean;
+  sound: boolean;
 }
 
 export interface PersistedSession {
@@ -46,6 +48,7 @@ export const KEYS = {
   docVersion: "sprintpad.docVersion",
   settings: "sprintpad.settings",
   session: "sprintpad.session",
+  snapshots: "sprintpad.snapshots",
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -54,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   breakSec: 10 * 60,
   theme: "system",
   notifications: true,
+  sound: true,
 };
 
 const MAX_DURATION_SEC = 8 * 60 * 60;
@@ -138,6 +142,7 @@ export function createStore(backend: StorageLike) {
           typeof stored.notifications === "boolean"
             ? stored.notifications
             : DEFAULT_SETTINGS.notifications,
+        sound: typeof stored.sound === "boolean" ? stored.sound : DEFAULT_SETTINGS.sound,
       };
     },
 
@@ -164,6 +169,22 @@ export function createStore(backend: StorageLike) {
         return null;
       }
       return stored as unknown as PersistedSession;
+    },
+
+    loadSnapshots(): Snapshot[] {
+      const stored = readJson<unknown>(KEYS.snapshots);
+      if (!Array.isArray(stored)) return [];
+      return stored.filter(
+        (entry): entry is Snapshot =>
+          typeof entry === "object" &&
+          entry !== null &&
+          typeof (entry as Snapshot).at === "number" &&
+          typeof (entry as Snapshot).doc === "string",
+      );
+    },
+
+    saveSnapshots(list: readonly Snapshot[]): void {
+      writeRaw(KEYS.snapshots, JSON.stringify(list));
     },
 
     saveSession(session: PersistedSession | null): void {

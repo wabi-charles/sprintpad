@@ -39,7 +39,16 @@ export function createSettingsView(
     paint();
   });
 
-  box.append(heading, focusRow.root, countUp, breakRow.root);
+  const sound = document.createElement("label");
+  sound.className = "sp-settings__check";
+  const soundBox = document.createElement("input");
+  soundBox.type = "checkbox";
+  const soundText = document.createElement("span");
+  soundText.textContent = "Chime when a session ends";
+  sound.append(soundBox, soundText);
+  soundBox.addEventListener("change", () => onChange({ sound: soundBox.checked }));
+
+  box.append(heading, focusRow.root, countUp, breakRow.root, sound);
   overlay.append(box);
   parent.append(overlay);
 
@@ -83,6 +92,7 @@ export function createSettingsView(
     focusRow.input.value = String(Math.round(settings.focusSec / 60));
     breakRow.input.value = String(Math.round(settings.breakSec / 60));
     countUpBox.checked = settings.mode === "countup";
+    soundBox.checked = settings.sound;
     focusRow.input.disabled = settings.mode === "countup";
     focusRow.root.classList.toggle("is-muted", settings.mode === "countup");
   }
