@@ -1,5 +1,6 @@
 import type { Store, SyncConfig } from "../data/storage";
 import { WrongPassword, decryptPad, deriveKey, encryptPad, randomPadKey, randomSalt } from "./crypto";
+import { SYNC_ENDPOINT } from "./endpoint";
 import { RemoteMovedOn, SyncUnavailable, createRemote } from "./remote";
 import { reconcile } from "./reconcile";
 
@@ -51,7 +52,7 @@ export function createPadSync(hooks: PadSyncHooks) {
 
   async function runOnce(): Promise<void> {
     if (!config) return;
-    const remote = createRemote(config.endpoint);
+    const remote = createRemote(SYNC_ENDPOINT);
     const derived = await unlock();
 
     const stored = await remote.get(config.padKey);
@@ -123,14 +124,9 @@ export function createPadSync(hooks: PadSyncHooks) {
       return config?.padKey ?? null;
     },
 
-    get endpoint(): string | null {
-      return config?.endpoint ?? null;
-    },
-
     /** Connect to a pad, creating a key when none is given. */
-    async connect(endpoint: string, padKey: string, password: string): Promise<void> {
+    async connect(padKey: string, password: string): Promise<void> {
       config = {
-        endpoint: endpoint.trim(),
         padKey: padKey.trim() === "" ? randomPadKey() : padKey.trim(),
         salt: randomSalt(),
         password,
@@ -141,7 +137,7 @@ export function createPadSync(hooks: PadSyncHooks) {
       // Joining an existing pad: adopt its salt, or the password derives the
       // wrong key and nothing it holds can be opened.
       try {
-        const stored = await createRemote(config.endpoint).get(config.padKey);
+        const stored = await createRemote(SYNC_ENDPOINT).get(config.padKey);
         if (stored) config = { ...config, salt: stored.payload.salt };
       } catch {
         // Offline at setup: the first successful sync will settle it.
@@ -161,7 +157,7 @@ export function createPadSync(hooks: PadSyncHooks) {
     /** Resolve a conflict by choosing a side; both are recoverable afterwards. */
     async resolve(keep: "local" | "remote"): Promise<void> {
       if (!config) return;
-      const remote = createRemote(config.endpoint);
+      const remote = createRemote(SYNC_ENDPOINT);
       const derived = await unlock();
       setStatus({ kind: "working" });
 

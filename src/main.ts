@@ -1,6 +1,6 @@
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { createEditor } from "./doc/editor";
-import { clearCompleted, toggleHeader, type TaskTarget } from "./doc/edits";
+import { clearCompleted, focusTargetsIn, toggleHeader, type TaskTarget } from "./doc/edits";
 import { focusAnchorsField, resolveFocusedLines } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
 import { recordSnapshot, type Snapshot } from "./data/snapshots";
@@ -22,6 +22,7 @@ import {
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
+import { padKeyFromLocation } from "./sync/endpoint";
 import { createPadSync } from "./sync/pad";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
@@ -117,6 +118,7 @@ const editor = createEditor({
 const theme = createTheme(settings.theme, (dark) => editor.setDark(dark));
 
 const panel = createFocusPanel(focusHost, {
+  start: () => startFocus(focusTargetsIn(editor.view.state)),
   togglePause: () => mutate((current, now) => togglePause(current, now)),
   done: completeFocusedTask,
   stop: () => endSession(false),
@@ -248,6 +250,7 @@ function describeTasks(tasks: readonly string[]): string {
 
 function panelView(now: number): PanelView {
   if (!session) {
+    const waiting = focusTargetsIn(editor.view.state);
     if (finished && now < finished.until) {
       return {
         kind: "finished",
@@ -256,7 +259,11 @@ function panelView(now: number): PanelView {
         focused: finished.focused,
       };
     }
-    return { kind: "idle" };
+    // Naming the task the cursor is on turns the panel from a description of
+    // the shortcut into the control itself.
+    const first = waiting[0]?.text ?? null;
+    const more = waiting.length > 1 ? ` and ${waiting.length - 1} more` : "";
+    return { kind: "idle", task: first === null ? null : `${first}${more}` };
   }
 
   // The live lines win over the titles captured at the start, so renaming a
@@ -422,13 +429,27 @@ if (stored) {
   editor.restoreFocus(session.anchors, session.tasks);
 }
 
-barActions.append(barButton("⌘/", openShortcuts), barButton("⌘K", openPalette));
+barActions.append(barButton("⌘/", "?", openShortcuts), barButton("⌘K", "⋯", openPalette));
 
-function barButton(label: string, run: () => void): HTMLButtonElement {
+/**
+ * Two labels: the shortcut where there is a keyboard, a plain glyph where
+ * there is not. CSS picks between them, so there is no device detection to
+ * get wrong.
+ */
+function barButton(shortcut: string, touchLabel: string, run: () => void): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "sp-bar__button";
-  button.textContent = label;
+
+  const keys = document.createElement("span");
+  keys.className = "sp-bar__keys";
+  keys.textContent = shortcut;
+
+  const glyph = document.createElement("span");
+  glyph.className = "sp-bar__glyph";
+  glyph.textContent = touchLabel;
+
+  button.append(keys, glyph);
   button.addEventListener("click", run);
   return button;
 }
@@ -505,6 +526,17 @@ editor.focus();
 
 // Pick up anything another device wrote while this one was closed.
 if (padSync.isOn) void padSync.sync();
+
+/*
+ * Arriving on a shared pad link. The key is dropped from the address bar
+ * straight away: it is half of what opens the pad, and it does not belong in
+ * a bookmark, a screenshot or a referrer.
+ */
+const linkedPad = padKeyFromLocation(location.hash);
+if (linkedPad !== null) {
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!padSync.isOn) syncPanel.openForPad(linkedPad, () => editor.focus());
+}
 
 // Clicking anywhere in the empty space below the document should put the
 // cursor back in it -- the workpad is the interface.

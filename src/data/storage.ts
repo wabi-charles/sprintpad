@@ -37,7 +37,6 @@ export interface PersistedSession {
  * browser, which is the default and the normal case.
  */
 export interface SyncConfig {
-  endpoint: string;
   padKey: string;
   /** Per-pad salt for the key derivation; useless without the password. */
   salt: string;
@@ -224,7 +223,6 @@ export function createStore(backend: StorageLike) {
       const stored = readJson<Partial<SyncConfig>>(KEYS.sync);
       if (!stored || typeof stored !== "object") return null;
       if (
-        typeof stored.endpoint !== "string" ||
         typeof stored.padKey !== "string" ||
         typeof stored.salt !== "string" ||
         typeof stored.password !== "string"
@@ -239,7 +237,6 @@ export function createStore(backend: StorageLike) {
           : null;
 
       return {
-        endpoint: stored.endpoint,
         padKey: stored.padKey,
         salt: stored.salt,
         password: stored.password,

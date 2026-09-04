@@ -116,7 +116,6 @@ describe("snapshots", () => {
 
 describe("sync config", () => {
   const config = {
-    endpoint: "https://sync.example.com",
     padKey: "abc123def456ghi789jkl",
     salt: "c2FsdA==",
     password: "hunter2",
@@ -142,7 +141,7 @@ describe("sync config", () => {
   });
 
   it("discards a config missing anything it needs", () => {
-    for (const bad of ['{"endpoint":"x"}', "{{{", '{"padKey":"y","salt":"s","password":"p"}']) {
+    for (const bad of ['{"salt":"s"}', "{{{", '{"padKey":"y","salt":"s"}']) {
       expect(createStore(fakeBackend({ "sprintpad.sync": bad })).loadSync()).toBeNull();
     }
   });

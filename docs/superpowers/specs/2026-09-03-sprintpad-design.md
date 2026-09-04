@@ -655,3 +655,47 @@ a pad created and pushed; the server holding ciphertext with no plaintext
 anywhere in it; a second origin (separate storage) joining by pad name and
 password and pulling the first device's edit; the pre-join document kept as a
 snapshot; and a wrong password rejected with the local document untouched.
+
+
+---
+
+## Addendum 19: mobile, without a mobile design
+
+Sprintpad was installable on a phone and impossible to use there: the idle
+panel read "press ⌘Enter", the top bar advertised ⌘/ and ⌘K, and there was no
+way to start a session at all.
+
+The fix was not a mobile mode. The app had **no pointer route to starting a
+session on any device** -- the most prominent box on screen described an action
+while offering no way to take it. The idle panel now names the task at the
+cursor and carries a **Start** button, in the same row that already holds
+Pause / Done / Stop. Desktop gains a mouse route and a preview of what ⌘Enter
+would act on; mobile works as a consequence rather than as a special case. No
+media query, no device detection, no second layout to keep in sync.
+
+Two touch fixes, both invisible on desktop and keyed on `pointer: coarse`
+rather than width, so a narrow desktop window keeps its shortcuts:
+
+- **Hit areas.** The checkbox is 18px wide; the gutter beside it is empty, so a
+  pseudo-element grows the target to 44px without moving the glyph. Its height
+  matches the row exactly -- taller and neighbouring targets would overlap, so
+  a tap near a boundary could tick the wrong task.
+- **Honest labels.** `⌘/` and `⌘K` become `?` and `⋯`. Same buttons, not lying
+  about how to reach them.
+
+Row spacing had to go in the CodeMirror theme rather than the stylesheet, for
+the third time now: a plain `.cm-line` rule loses to the generated theme at
+equal specificity. That belongs in the mental model for this file.
+
+## Addendum 20: sync stops asking for a server
+
+Choosing a server is not a user setting -- it is a deployment detail. The
+endpoint is a build-time constant (`VITE_SYNC_ENDPOINT`), and the panel asks
+only for a password.
+
+That left the pad key, which was a random 24 characters and miserable to type
+on a phone. It is now handed over as a link. Opening it prefills the pad and
+asks only for the password, and the key is stripped from the address bar
+immediately -- it is half of what opens the pad and does not belong in history,
+a bookmark or a screenshot. Which is the "secret URL plus password" this
+started as.

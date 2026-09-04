@@ -1,3 +1,4 @@
+import { padLink } from "../sync/endpoint";
 import type { PadSync, SyncStatus } from "../sync/pad";
 
 /**
@@ -19,6 +20,8 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
   });
 
   let restoreFocus: (() => void) | null = null;
+  /** A pad handed over by link, waiting for its password. */
+  let pendingPadKey: string | null = null;
 
   function close(): void {
     overlay.hidden = true;
@@ -69,19 +72,37 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
     box.append(status);
 
     if (sync.isOn) {
-      const key = document.createElement("p");
-      key.className = "sp-sync__key";
-      key.textContent = sync.padKey ?? "";
-      box.append(key);
+      // The link is the pad name: far easier to send to a phone than to type.
+      const link = document.createElement("input");
+      link.className = "sp-sync__key";
+      link.readOnly = true;
+      link.value = padLink(sync.padKey ?? "");
+      link.addEventListener("focus", () => link.select());
+      box.append(link);
+
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "sp-btn";
+      copy.textContent = "Copy link";
+      copy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(link.value);
+          copy.textContent = "Copied";
+        } catch {
+          link.focus();
+        }
+      });
 
       const hint = document.createElement("p");
       hint.className = "sp-sync__hint";
       hint.textContent =
-        "Enter this pad name and the same password on another device to open the same list.";
+        "Open this link on another device and enter the same password. Keep it private — " +
+        "the link plus the password opens your list.";
       box.append(hint);
 
       const actions = document.createElement("div");
       actions.className = "sp-sync__actions";
+      actions.append(copy);
 
       if (sync.status.kind === "conflict") {
         for (const [label, keep] of [
@@ -122,20 +143,28 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
       "and nobody can reset it for you.";
     box.append(blurb);
 
-    const endpoint = field("Server", "https://sprintpad-sync.you.workers.dev", "url");
-    const padKey = field("Pad name", "blank to create a new one");
     const password = field("Password", "", "password");
-    endpoint.input.value = sync.endpoint ?? "";
-    box.append(endpoint.row, padKey.row, password.row);
+    box.append(password.row);
+
+    // Arriving from a shared link: the pad is already chosen, so only the
+    // password is asked for.
+    const joining = pendingPadKey !== null;
+    if (joining) {
+      const note = document.createElement("p");
+      note.className = "sp-sync__hint";
+      note.textContent = "Joining the pad from your link.";
+      box.append(note);
+    }
 
     const connect = document.createElement("button");
     connect.type = "button";
     connect.className = "sp-btn sp-btn--primary";
-    connect.textContent = "Turn on sync";
+    connect.textContent = joining ? "Open this pad" : "Turn on sync";
     connect.addEventListener("click", async () => {
-      if (endpoint.input.value.trim() === "" || password.input.value === "") return;
+      if (password.input.value === "") return;
       connect.disabled = true;
-      await sync.connect(endpoint.input.value, padKey.input.value, password.input.value);
+      await sync.connect(pendingPadKey ?? "", password.input.value);
+      pendingPadKey = null;
       onChange();
       paint();
     });
@@ -149,6 +178,15 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
   return {
     get isOpen(): boolean {
       return !overlay.hidden;
+    },
+
+    /** Opens ready to join the pad a link named. */
+    openForPad(padKey: string, onClose: () => void): void {
+      pendingPadKey = padKey;
+      restoreFocus = onClose;
+      paint();
+      overlay.hidden = false;
+      box.querySelector("input")?.focus();
     },
 
     open(onClose: () => void): void {

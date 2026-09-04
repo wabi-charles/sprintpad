@@ -65,6 +65,14 @@ const baseTheme = EditorView.theme({
    * left edge of every selection rect.
    */
   ".cm-line.sp-line--header": { paddingTop: "1.1em" },
+  /*
+   * Taller rows for thumbs. It lives in the theme for the same reason the
+   * gutter does: a plain `.cm-line` rule in styles.css loses to the generated
+   * theme at equal specificity.
+   */
+  "@media (hover: none) and (pointer: coarse)": {
+    ".cm-line": { paddingTop: "5px", paddingBottom: "5px" },
+  },
 });
 
 export function createEditor(hooks: EditorHooks) {

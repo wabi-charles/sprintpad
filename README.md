@@ -57,6 +57,7 @@ your list out, select it and copy — it is plain text.
 | Step back out of a nested task | `Enter` again on the empty line |
 | Start focus on the task at the cursor | `⌘Enter` |
 | Focus on several tasks at once | select the lines, then `⌘Enter` |
+| Start without the keyboard | the **Start** button in the panel |
 | Complete task | `⌘D` |
 | Unwrap a header or completed task | `Backspace` at the head of the text |
 | Make a line a header | type `# `, or "Toggle header" in `⌘K` |
@@ -87,7 +88,9 @@ so select it and copy.
 ## Focus sessions
 
 `⌘Enter` starts a session on the task under the cursor. No modal, no
-confirmation.
+confirmation. The idle panel names that task and offers a **Start** button, so
+there is a pointer route too — which is what makes the app usable on a phone
+without a separate mobile design.
 
 Select several lines first and `⌘Enter` covers all of them in **one** session —
 still one timer and one stretch of work, it just spans a few tasks. Headers and
@@ -166,6 +169,12 @@ replaced becomes a version of its own.
 **Sync across devices (advanced, off by default).** `⌘K → Sync across devices`
 turns on an opt-in mode that keeps one pad in step across browsers. Until you
 turn it on, nothing leaves the machine.
+
+You are not asked for a server: the endpoint is a deployment detail, baked in
+at build time (`VITE_SYNC_ENDPOINT` for self-hosters). Turning sync on gives
+you a link — open it on another device and enter the same password. The pad key
+is stripped from the address bar on arrival, so it does not linger in history
+or a screenshot.
 
 The password is not a login — it is the encryption key. The pad is encrypted in
 your browser with AES-GCM under a key stretched from that password

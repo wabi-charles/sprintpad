@@ -110,6 +110,54 @@ body {
   color: var(--sp-fg-dim);
 }
 
+.sp-bar__glyph {
+  display: none;
+}
+
+/*
+ * No keyboard: show the glyph instead of a shortcut that cannot be typed, and
+ * give the buttons a real touch target. Keyed on pointer rather than width, so
+ * a narrow desktop window keeps its shortcuts.
+ */
+@media (hover: none) and (pointer: coarse) {
+  .sp-bar__keys {
+    display: none;
+  }
+
+  .sp-bar__glyph {
+    display: inline;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .sp-bar__button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* The gutter beside the box is empty, so the hit area can grow into it
+     without moving the glyph or disturbing the text. Its height matches the
+     row exactly -- any taller and neighbouring checkboxes would overlap, so a
+     tap near a boundary could tick the wrong task. */
+  .sp-check::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+  }
+
+  .sp-check {
+    position: relative;
+  }
+
+  .sp-focus__task {
+    font-size: 16px;
+  }
+}
+
 /* ---------------------------------------------------------- focus area --- */
 
 .sp-focus {

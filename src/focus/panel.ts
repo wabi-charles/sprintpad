@@ -6,7 +6,7 @@
 
 /** `extra` is how many further tasks the session covers beyond the first. */
 export type PanelView =
-  | { kind: "idle" }
+  | { kind: "idle"; task: string | null }
   | { kind: "running"; task: string; extra: number; clock: string; countUp: boolean }
   | { kind: "paused"; task: string; extra: number; clock: string; countUp: boolean }
   | { kind: "expired"; task: string; extra: number; focused: string }
@@ -14,6 +14,8 @@ export type PanelView =
   | { kind: "finished"; task: string; extra: number; focused: string };
 
 export interface PanelActions {
+  /** Start a session on the task at the cursor. */
+  start(): void;
   togglePause(): void;
   done(): void;
   stop(): void;
@@ -31,6 +33,12 @@ interface ButtonSpec {
 
 function buttonsFor(view: PanelView, actions: PanelActions): ButtonSpec[] {
   switch (view.kind) {
+    // Not a mobile affordance: there was no pointer route to starting a
+    // session on any device, only a shortcut the panel described.
+    case "idle":
+      return view.task === null
+        ? []
+        : [{ label: "Start", run: actions.start, primary: true, title: "⌘⏎" }];
     case "running":
       return [
         { label: "Pause", run: actions.togglePause, title: "Space" },
@@ -123,7 +131,9 @@ export function createFocusPanel(parent: HTMLElement, actions: PanelActions) {
                   : "Focus";
 
       task.textContent =
-        view.kind === "idle" ? "Select a task and press ⌘Enter" : view.task;
+        view.kind === "idle"
+          ? (view.task ?? "Select a task to focus on")
+          : view.task;
 
       const extra = view.kind === "idle" ? 0 : view.extra;
       alsoCount.textContent = extra > 0 ? `and ${extra} more task${extra === 1 ? "" : "s"}` : "";
