@@ -31,6 +31,8 @@ export default defineConfig({
     }),
   ],
   test: {
+    // Most suites are pure logic; the wiring suites opt into a DOM with a
+    // `@vitest-environment jsdom` docblock.
     environment: "node",
     include: ["src/**/*.test.ts"],
   },

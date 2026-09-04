@@ -699,3 +699,33 @@ asks only for the password, and the key is stripped from the address bar
 immediately -- it is half of what opens the pad and does not belong in history,
 a bookmark or a screenshot. Which is the "secret URL plus password" this
 started as.
+
+
+---
+
+## Addendum 21: covering the wiring
+
+Every suite until now tested pure modules, and every bug in the back half of
+this build lived somewhere else -- the orphaned session, the cursor drawn in
+the wrong place, the selection left standing after focus started, the header
+rule's height. All were caught by driving a browser by hand, which does not
+scale and will not happen next time.
+
+Two suites now cover the layer where they lived:
+
+**`src/sync/pad.test.ts`** runs the sync orchestrator against a fake server
+implementing the Worker's contract -- create a pad, join from a second device,
+wrong password, local edit, remote edit, both edited, network down, disconnect.
+It asserts the things that would be quiet failures: that a pad holds ciphertext
+and never the document, that sync off touches no network at all, that a wrong
+password leaves the local document alone, and that a conflict is reported
+rather than resolved by picking a side.
+
+**`src/focus/panel.test.ts`** covers the panel's states under jsdom. It renders
+in place rather than rebuilding, so its failure mode is a stale control or a
+count that does not clear -- and one test pins the reason for that design, that
+the button elements survive a re-render so focus is not dropped every tick.
+
+Still uncovered: `main.ts` itself, which would need the app split into a
+controller to be testable. Worth doing when it next needs real change, not
+before.

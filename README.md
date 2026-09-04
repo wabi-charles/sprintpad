@@ -151,6 +151,11 @@ npm test        # unit tests
 npm run build   # typecheck + production build
 ```
 
+Most suites are pure logic in `node`; the ones that need a DOM opt in with a
+`@vitest-environment jsdom` docblock. `src/sync/pad.test.ts` runs the sync
+wiring against a fake server implementing the Worker's contract, which is where
+a silent data loss would actually happen.
+
 Logic lives in modules with no DOM or CodeMirror dependency and is tested
 directly: `src/doc/grammar.ts` and `paste.ts` (the line grammar),
 `src/doc/edits.ts` (editing as pure `state -> transaction` functions),
