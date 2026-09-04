@@ -860,14 +860,10 @@ body {
   color: var(--sp-fg-faint);
 }
 
+/* Space below the list belongs to this heading: the rows are not the last
+   element of their type, so keying off them matched the wrong node. */
 .sp-pads__subtitle {
-  margin-top: 4px;
-}
-
-.sp-pads hr {
-  margin: 16px 0 14px;
-  border: 0;
-  border-top: 1px solid var(--sp-border);
+  margin-top: 20px;
 }
 
 .sp-pads__row {
@@ -875,8 +871,16 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
+  /* An even rhythm whether or not a row carries buttons. */
+  min-height: 46px;
+  padding: 6px 0 6px 10px;
   border-bottom: 1px solid var(--sp-border);
+}
+
+/* One separator between the list and the form, not the row border plus a rule. */
+
+.sp-pads__row.is-current {
+  box-shadow: inset 2px 0 0 0 var(--sp-accent);
 }
 
 .sp-pads__label {

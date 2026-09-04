@@ -826,3 +826,25 @@ was Cloudflare KV's eventual consistency, resolving to 404 within a few
 seconds. Earlier in this build the same pattern hid a real security bug behind
 deploy propagation. Read-after-write against KV needs a second look before it
 means anything.
+
+
+---
+
+## Addendum 25: tidying the pad list
+
+Three faults in the list, all of them structural rather than decorative:
+
+**A double separator.** Every row carries a bottom border, and an `<hr>` was
+added on top of it before the form -- two lines a few pixels apart. The rule is
+gone; the spacing belongs to the "New pad" heading.
+
+**Keying spacing off the last row did not work.** `.sp-pads__row:last-of-type`
+matches the last `div` among the panel's children, which is the button row at
+the bottom, not the last pad. Spacing the heading directly is deterministic and
+does not depend on what else happens to be a `div`.
+
+**The open row looked unfinished.** It has no Open button, so its right-hand
+side was simply empty. It now carries the same accent rule the cursor's line
+does, which makes the absence read as "this is the one you are on" rather than
+as a missing control. Rows also take a `min-height`, so one with buttons and
+one without keep the same rhythm.

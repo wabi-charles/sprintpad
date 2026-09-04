@@ -71,9 +71,11 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
     }
   }
 
-  function row(title: string, note: string, controls: HTMLElement[]): HTMLElement {
+  function row(title: string, note: string, controls: HTMLElement[], current = false): HTMLElement {
     const el = document.createElement("div");
-    el.className = "sp-pads__row";
+    // The open pad is marked rather than merely lacking an Open button, so its
+    // emptier right-hand side reads as deliberate.
+    el.className = `sp-pads__row${current ? " is-current" : ""}`;
 
     const label = document.createElement("div");
     label.className = "sp-pads__label";
@@ -110,8 +112,9 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
     box.append(
       row(
         "This browser",
-        here === null ? "open — stays on this device" : "stays on this device",
+        "stays on this device",
         here === null ? [] : [button("Open", () => location.assign("/"))],
+        here === null,
       ),
     );
 
@@ -152,10 +155,8 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         );
       }
 
-      box.append(row(padId, isHere ? `open — ${statusFor(padId)}` : "", controls));
+      box.append(row(padId, isHere ? statusFor(padId) : "syncs across devices", controls, isHere));
     }
-
-    box.append(document.createElement("hr"));
 
     const subheading = document.createElement("h3");
     subheading.className = "sp-pads__subtitle";
