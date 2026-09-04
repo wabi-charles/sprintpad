@@ -1,5 +1,5 @@
 import { forgetPadLocally, knownPadIds, type StorageLike } from "../data/storage";
-import { createPad, deletePadEverywhere } from "../sync/createPad";
+import { createPad, deletePadEverywhere, openExistingPad } from "../sync/pads";
 import type { PadSync, SyncStatus } from "../sync/pad";
 import { describePadIdProblem, normalizePadId, padIdProblem, padUrl } from "../sync/padId";
 
@@ -158,62 +158,91 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       box.append(row(padId, isHere ? statusFor(padId) : "syncs across devices", controls, isHere));
     }
 
+    section("Open a pad", "Made on another device? Name it and it joins this one.");
+    const open = fields();
+    const openTrouble = problemLine();
+    const openButton = button(
+      "Open pad",
+      async () => {
+        const padId = normalizePadId(open.name.value);
+        const shape = padIdProblem(padId);
+        if (shape) return openTrouble(describePadIdProblem(shape));
+        if (open.password.value === "") return openTrouble("Enter the pad's password.");
+
+        openButton.disabled = true;
+        openTrouble("Opening…");
+        const result = await openExistingPad(hooks.backend, padId, open.password.value);
+        openButton.disabled = false;
+
+        if (result.kind === "opened") location.assign(padUrl(padId));
+        else if (result.kind === "missing") openTrouble("No pad by that name. Create it below.");
+        else if (result.kind === "wrongPassword") openTrouble("That password does not open this pad.");
+        else openTrouble(result.detail);
+      },
+      " sp-btn--primary",
+    );
+    submitOn([open.name, open.password], openButton);
+    buttonRow(openButton);
+
     const subheading = document.createElement("h3");
     subheading.className = "sp-pads__subtitle";
     subheading.textContent = "New pad";
     box.append(subheading);
 
-    const blurb = document.createElement("p");
-    blurb.className = "sp-pads__hint";
-    blurb.textContent =
-      "A pad gets its own address and syncs across devices. It starts as a copy of the list " +
-      "you are looking at now. The password is the key — the server cannot read the pad, and " +
-      "nobody can reset it for you.";
-    box.append(blurb);
+    hint(
+      "A new pad gets its own address and starts as a copy of the list you are looking at now. " +
+        "The password is the key — the server cannot read the pad, and nobody can reset it.",
+    );
 
-    const name = field("Name", "", "text");
-    const password = field("Password", "", "password");
-
-    const trouble = document.createElement("p");
-    trouble.className = "sp-pads__problem";
-    box.append(trouble);
-
-    function problem(text: string): void {
-      trouble.textContent = text;
-    }
+    const made = fields();
+    const problem = problemLine();
 
     const create = button(
       "Create pad",
       async () => {
-        const padId = normalizePadId(name.value);
+        const padId = normalizePadId(made.name.value);
         const shape = padIdProblem(padId);
         if (shape) return problem(describePadIdProblem(shape));
-        if (password.value === "") return problem("Choose a password. It cannot be reset.");
+        if (made.password.value === "") return problem("Choose a password. It cannot be reset.");
 
         create.disabled = true;
         problem("Creating…");
-        const result = await createPad(hooks.backend, padId, password.value, hooks.getDoc());
+        const result = await createPad(hooks.backend, padId, made.password.value, hooks.getDoc());
         create.disabled = false;
 
         if (result.kind === "created") location.assign(padUrl(padId));
-        else if (result.kind === "taken") problem("That name is taken. Open it instead.");
-        else problem(result.detail);
+        else if (result.kind === "taken") {
+          // Not a dead end: that pad is very likely theirs.
+          problem("That name is taken — open it above instead.");
+          open.name.value = padId;
+          open.name.focus();
+        } else problem(result.detail);
       },
       " sp-btn--primary",
     );
+    submitOn([made.name, made.password], create);
+    buttonRow(create);
 
-    for (const input of [name, password]) {
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") create.click();
-      });
+    function section(title: string, blurb: string): void {
+      const el = document.createElement("h3");
+      el.className = "sp-pads__subtitle";
+      el.textContent = title;
+      box.append(el);
+      hint(blurb);
     }
 
-    const actions = document.createElement("div");
-    actions.className = "sp-pads__actions";
-    actions.append(create);
-    box.append(actions);
+    function hint(text: string): void {
+      const el = document.createElement("p");
+      el.className = "sp-pads__hint";
+      el.textContent = text;
+      box.append(el);
+    }
 
-    function field(label: string, placeholder: string, type: string): HTMLInputElement {
+    function fields(): { name: HTMLInputElement; password: HTMLInputElement } {
+      return { name: field("Name", "text"), password: field("Password", "password") };
+    }
+
+    function field(label: string, type: string): HTMLInputElement {
       const rowEl = document.createElement("label");
       rowEl.className = "sp-pads__field";
       const caption = document.createElement("span");
@@ -221,10 +250,33 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       const input = document.createElement("input");
       input.className = "sp-pads__input";
       input.type = type;
-      input.placeholder = placeholder;
       rowEl.append(caption, input);
       box.append(rowEl);
       return input;
+    }
+
+    function problemLine(): (text: string) => void {
+      const el = document.createElement("p");
+      el.className = "sp-pads__problem";
+      box.append(el);
+      return (text) => {
+        el.textContent = text;
+      };
+    }
+
+    function submitOn(inputs: HTMLInputElement[], target: HTMLButtonElement): void {
+      for (const input of inputs) {
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") target.click();
+        });
+      }
+    }
+
+    function buttonRow(...controls: HTMLElement[]): void {
+      const actions = document.createElement("div");
+      actions.className = "sp-pads__actions";
+      actions.append(...controls);
+      box.append(actions);
     }
   }
 

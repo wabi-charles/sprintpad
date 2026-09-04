@@ -848,3 +848,29 @@ side was simply empty. It now carries the same accent rule the cursor's line
 does, which makes the absence read as "this is the one you are on" rather than
 as a missing control. Rows also take a `min-height`, so one with buttons and
 one without keep the same rhythm.
+
+
+---
+
+## Addendum 26: getting a pad onto the second computer
+
+Reported, and correct: a pad made on one computer could not be opened on
+another. The pad list only shows pads a device already knows, and a new device
+knows none -- so the second computer offered an empty list and a Create form,
+which then refused with "that name is taken" and stopped there. Typing the URL
+by hand worked, but nothing said so.
+
+The gap was conceptual rather than a bug: **creating a pad and adopting an
+existing one are different actions**, and only the first was built. The panel
+now leads with **Open a pad** -- name and password, verified by decrypting what
+the server holds -- above **New pad**. A failed open leaves nothing behind, the
+same rollback rule as everywhere else.
+
+"That name is taken" is no longer a dead end either: it fills the name into the
+Open form and moves the cursor there, because a taken name is very often the
+user's own pad.
+
+Verified across two origins with separate storage: a pad made on the first with
+distinctive content, then opened on the second by name and password, arriving
+with that content and no prompt. Both failure paths too -- an unknown name, and
+a wrong password, which leaves no trace on the device.

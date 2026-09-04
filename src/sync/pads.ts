@@ -1,5 +1,5 @@
 import { createStore, forgetPadLocally, type StorageLike } from "../data/storage";
-import { derivePadKeys, encryptPad, randomSalt } from "./crypto";
+import { WrongPassword, decryptPad, derivePadKeys, encryptPad, randomSalt } from "./crypto";
 import { SYNC_ENDPOINT } from "./endpoint";
 import { createRemote } from "./remote";
 
@@ -46,6 +46,52 @@ export async function createPad(
     // Leave nothing half-made behind.
     forgetPadLocally(backend, padId);
     return { kind: "failed", detail: error instanceof Error ? error.message : "Could not create the pad" };
+  }
+}
+
+export type OpenOutcome =
+  | { kind: "opened" }
+  | { kind: "missing" }
+  | { kind: "wrongPassword" }
+  | { kind: "failed"; detail: string };
+
+/**
+ * Adds a pad that already exists to this device.
+ *
+ * The counterpart to creating one, and the only way onto a second computer:
+ * that device has never heard of the pad, so it cannot appear in a list until
+ * someone names it.
+ */
+export async function openExistingPad(
+  backend: StorageLike,
+  padId: string,
+  password: string,
+): Promise<OpenOutcome> {
+  let stored;
+  try {
+    stored = await createRemote(SYNC_ENDPOINT).get(padId);
+  } catch (error) {
+    return {
+      kind: "failed",
+      detail: error instanceof Error ? error.message : "Could not reach the server",
+    };
+  }
+  if (!stored) return { kind: "missing" };
+
+  try {
+    // The pad's own salt, or the password derives a key that opens nothing.
+    const salt = stored.payload.salt;
+    const keys = await derivePadKeys(password, salt);
+    const doc = await decryptPad(keys.encryption, stored.payload);
+
+    const store = createStore(backend, padId);
+    store.saveDoc(doc);
+    store.saveCredentials({ salt, password, lastSynced: { doc, updatedAt: stored.updatedAt } });
+    return { kind: "opened" };
+  } catch (error) {
+    forgetPadLocally(backend, padId);
+    if (error instanceof WrongPassword) return { kind: "wrongPassword" };
+    return { kind: "failed", detail: error instanceof Error ? error.message : "Could not open the pad" };
   }
 }
 
