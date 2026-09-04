@@ -1,25 +1,14 @@
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { createEditor } from "./doc/editor";
-import { clearCompleted, focusTargetsIn, toggleHeader, type TaskTarget } from "./doc/edits";
+import { clearCompleted, focusTargetsIn, toggleHeader } from "./doc/edits";
 import { focusAnchorsField, resolveFocusedLines } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
 import { recordSnapshot, type Snapshot } from "./data/snapshots";
 import { browserStorage, createStore, debounce, type Settings } from "./data/storage";
 import { createChime } from "./focus/chime";
 import { createNotifier } from "./focus/notifications";
-import { createFocusPanel, type PanelView } from "./focus/panel";
-import {
-  beginBreak,
-  beginSession,
-  expireIfDue,
-  fromPersisted,
-  isBreakOver,
-  keepWorking,
-  togglePause,
-  totalFocusedSec,
-  type FocusSession,
-} from "./focus/session";
-import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
+import { createSessionController } from "./focus/lifecycle";
+import { createFocusPanel } from "./focus/panel";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
 import { createPadSync, type SyncStatus } from "./sync/pad";
@@ -53,14 +42,6 @@ const STARTER_DOC = [
 ].join("\n");
 
 const TICK_MS = 250;
-/**
- * How long the focused task may be absent from the document before the session
- * is treated as orphaned. Long enough to survive a cut and paste, short enough
- * that the panel never sits there naming a task that no longer exists.
- */
-const ORPHAN_GRACE_MS = 2000;
-/** How long the "you finished it" line stays up before returning to idle. */
-const FINISHED_MS = 5000;
 
 /**
  * The URL names the pad. The root is always the local browser list; /happy is
@@ -81,11 +62,7 @@ try {
 const backend = browserStorage(window.localStorage);
 const store = createStore(backend, activePadId ?? "");
 let settings: Settings = store.loadSettings();
-let session: FocusSession | null = null;
 let snapshots: Snapshot[] = store.loadSnapshots();
-let finished: { task: string; extra: number; focused: string; until: number } | null = null;
-let announcedExpiry: string | null = null;
-let taskMissingSince: number | null = null;
 
 const app = document.getElementById("app")!;
 
@@ -139,7 +116,6 @@ const saveState = debounce((doc: string) => {
   }
   savedDoc = doc;
   store.saveDoc(doc);
-  persistSession();
   if (padSync.isUnlocked) pushToPad();
 }, 300);
 const notifier = createNotifier(() => settings.notifications);
@@ -149,23 +125,29 @@ const editor = createEditor({
   parent: workpad,
   doc: initialDoc,
   onDocChange: handleDocChange,
-  onStartFocus: startFocus,
+  onStartFocus: (targets) =>
+    sessions.start(
+      targets.map((target) => ({
+        from: target.from,
+        text: target.text,
+        completed: target.completed,
+      })),
+    ),
   onCommandPalette: openPalette,
-  focusSnapshot: () => session?.tasks ?? null,
+  focusSnapshot: () => sessions.session?.tasks ?? null,
 });
 
 const theme = createTheme(settings.theme, (dark) => editor.setDark(dark));
 createTouchBar(touchHost, () => editor);
 
 const panel = createFocusPanel(focusHost, {
-  start: () => startFocus(focusTargetsIn(editor.view.state)),
-  togglePause: () => mutate((current, now) => togglePause(current, now)),
-  done: completeFocusedTask,
-  stop: () => endSession(false),
-  keepWorking: () =>
-    mutate((current, now) => keepWorking(current, settings.mode, settings.focusSec, now)),
-  takeBreak: () => mutate((current, now) => beginBreak(current, settings.breakSec, now)),
-  endBreak: () => endSession(false),
+  start: () => sessions.startAtCursor(),
+  togglePause: () => sessions.togglePause(),
+  done: () => sessions.complete(),
+  stop: () => sessions.stop(),
+  keepWorking: () => sessions.toggleClock(),
+  takeBreak: () => sessions.takeBreak(),
+  endBreak: () => sessions.stop(),
 });
 
 const timerSettings = createSettingsView(app, () => settings, updateSettings);
@@ -219,43 +201,40 @@ const palette = createPalette(app, buildCommands);
 
 // ---------------------------------------------------------------- session ---
 
-function persistSession(): void {
-  store.saveSession(
-    session === null
-      ? null
-      : { ...session, anchors: editor.view.state.field(focusAnchorsField, false) ?? [] },
-  );
-}
-
-/** Applies a transition to the live session, then persists and repaints. */
-function mutate(transition: (current: FocusSession, now: number) => FocusSession): void {
-  if (!session) return;
-  session = transition(session, Date.now());
-  persistSession();
-  render();
-}
-
-function startFocus(targets: TaskTarget[]): void {
-  if (targets.length === 0) return;
-  if (session) endSession(false);
-  const now = Date.now();
-  session = beginSession({
-    tasks: targets.map((target) => target.text),
-    anchors: [],
-    mode: settings.mode,
-    durationSec: settings.mode === "countup" ? 0 : settings.focusSec,
-    now,
-  });
-  finished = null;
-  announcedExpiry = null;
-  taskMissingSince = null;
-  editor.anchorTo(targets.map((target) => target.from));
-  persistSession();
-  void notifier.request();
-  // Started from a keypress, which is the only moment audio may be unlocked.
-  chime.prepare();
-  render();
-}
+const sessions = createSessionController({
+  now: () => Date.now(),
+  settings: () => settings,
+  locate: (tasks) =>
+    resolveFocusedLines(editor.view.state, tasks).map((line) => ({
+      from: line.from,
+      text: parseLine(line.text).text.trim(),
+      completed: parseLine(line.text).completed,
+    })),
+  candidates: () =>
+    focusTargetsIn(editor.view.state).map((target) => ({
+      from: target.from,
+      text: target.text,
+      completed: target.completed,
+    })),
+  anchorTo: (positions) => editor.anchorTo(positions),
+  clearAnchor: () => {
+    editor.clearAnchor();
+    editor.focus();
+  },
+  completeAt: (positions) => editor.completeAt(positions),
+  persist: (session) =>
+    store.saveSession(
+      session === null
+        ? null
+        : { ...session, anchors: editor.view.state.field(focusAnchorsField, false) ?? [] },
+    ),
+  notify: (title, body) => notifier.notify(title, body),
+  chime: () => chime.play(),
+  unlockAudio: () => {
+    void notifier.request();
+    chime.prepare();
+  },
+});
 
 /**
  * Restoring is itself an edit, so it lands in the undo history and the current
@@ -271,146 +250,21 @@ function restoreVersion(doc: string): void {
   editor.setDoc(doc);
 }
 
-function endSession(completed: boolean): void {
-  if (!session) return;
-  if (completed) {
-    finished = {
-      task: describeTasks(session.tasks),
-      extra: Math.max(0, session.tasks.length - 1),
-      focused: formatDurationLong(totalFocusedSec(session, Date.now())),
-      until: Date.now() + FINISHED_MS,
-    };
-  }
-  session = null;
-  announcedExpiry = null;
-  taskMissingSince = null;
-  editor.clearAnchor();
-  persistSession();
-  render();
-  editor.focus();
-}
-
-/**
- * §13: complete the task, show what it cost, and move on. Ticking the box is
- * all this does -- `handleDocChange` is what ends the session, so ⌘D, a click
- * on the checkbox and this button all behave identically.
- */
-function completeFocusedTask(): void {
-  if (!session) return;
-  const lines = resolveFocusedLines(editor.view.state, session.tasks);
-  if (lines.length > 0) editor.completeAt(lines.map((line) => line.from));
-  else endSession(true);
-}
-
 function handleDocChange(doc: string): void {
   saveState(doc);
-  if (!session) return;
-  // The session is done when every task in it is.
-  const lines = resolveFocusedLines(editor.view.state, session.tasks);
-  if (lines.length > 0 && lines.every((line) => parseLine(line.text).completed)) endSession(true);
-}
-
-/** "Pay taxes" on its own; "Pay taxes" plus a count when it is a group. */
-function describeTasks(tasks: readonly string[]): string {
-  return tasks[0] ?? "";
-}
-
-// ------------------------------------------------------------------ view ---
-
-function panelView(now: number): PanelView {
-  if (!session) {
-    const waiting = focusTargetsIn(editor.view.state);
-    if (finished && now < finished.until) {
-      return {
-        kind: "finished",
-        task: finished.task,
-        extra: finished.extra,
-        focused: finished.focused,
-      };
-    }
-    // Naming the task the cursor is on turns the panel from a description of
-    // the shortcut into the control itself.
-    const first = waiting[0]?.text ?? null;
-    const more = waiting.length > 1 ? ` and ${waiting.length - 1} more` : "";
-    return { kind: "idle", task: first === null ? null : `${first}${more}` };
-  }
-
-  // The live lines win over the titles captured at the start, so renaming a
-  // task mid-session is reflected straight away.
-  const lines = resolveFocusedLines(editor.view.state, session.tasks);
-  const titles = lines.length > 0 ? lines.map((line) => parseLine(line.text).text.trim()) : [...session.tasks];
-  const task = titles[0] ?? "";
-  const extra = Math.max(0, titles.length - 1);
-
-  if (session.phase === "expired") {
-    return {
-      kind: "expired",
-      task,
-      extra,
-      focused: formatDurationLong(totalFocusedSec(session, now)),
-    };
-  }
-
-  const left = remainingSec(session.timer, now);
-  const clock = formatClock(left ?? elapsedSec(session.timer, now));
-
-  if (session.phase === "break") {
-    return { kind: "break", task, extra, clock, paused: !session.timer.running };
-  }
-  return {
-    kind: session.phase === "paused" ? "paused" : "running",
-    task,
-    extra,
-    clock,
-    countUp: session.timer.mode === "countup",
-  };
+  sessions.noteDocChange();
 }
 
 function render(): void {
-  const now = Date.now();
-
-  if (session) {
-    const advanced = expireIfDue(session, now);
-    if (advanced !== session) {
-      session = advanced;
-      persistSession();
-    }
-    if (session.phase === "expired" && announcedExpiry !== session.id) {
-      announcedExpiry = session.id;
-      notifier.notify("Focus complete", describeTasks(session.tasks));
-      chime.play();
-    }
-    if (isBreakOver(session, now)) {
-      notifier.notify("Break over", "Ready for the next one.");
-      chime.play();
-      endSession(false);
-      return;
-    }
-
-    // A session belongs to a task. Once that task is gone from the document,
-    // the panel is naming something that no longer exists.
-    if (resolveFocusedLines(editor.view.state, session.tasks).length > 0) {
-      taskMissingSince = null;
-    } else {
-      taskMissingSince ??= now;
-      if (now - taskMissingSince > ORPHAN_GRACE_MS) {
-        endSession(false);
-        return;
-      }
-    }
-  }
-
-  const view = panelView(now);
+  sessions.tick();
+  const view = sessions.view();
   panel.render(view);
 
-  if (view.kind === "running" || view.kind === "paused" || view.kind === "break") {
-    document.title = `${view.clock} — ${view.task}`;
-  } else {
-    document.title = "Sprintpad";
-  }
+  document.title =
+    view.kind === "running" || view.kind === "paused" || view.kind === "break"
+      ? `${view.clock} — ${view.task}`
+      : "Sprintpad";
 }
-
-// -------------------------------------------------------------- commands ---
 
 function updateSettings(patch: Partial<Settings>): void {
   settings = { ...settings, ...patch };
@@ -460,23 +314,6 @@ function openPalette(): void {
   palette.open(() => editor.focus());
 }
 
-/**
- * ⇧⌘Space. One key for "keep the clock running": resume while paused, and
- * start another stretch once the timer is up.
- */
-function toggleClock(): void {
-  if (!session) return;
-  if (session.phase === "expired") {
-    mutate((current, now) => keepWorking(current, settings.mode, settings.focusSec, now));
-  } else {
-    mutate(togglePause);
-  }
-}
-
-function takeBreak(): void {
-  if (!session || session.phase === "break") return;
-  mutate((current, now) => beginBreak(current, settings.breakSec, now));
-}
 
 function openShortcuts(): void {
   if (palette.isOpen) palette.close();
@@ -489,10 +326,8 @@ function openShortcuts(): void {
 // ----------------------------------------------------------------- setup ---
 
 const stored = store.loadSession();
-if (stored) {
-  session = fromPersisted(stored);
-  editor.restoreFocus(session.anchors, session.tasks);
-}
+sessions.restore(stored);
+if (stored) editor.restoreFocus(stored.anchors, stored.tasks);
 
 barActions.append(barButton("⌘/", "?", openShortcuts), barButton("⌘K", "⋯", openPalette));
 
@@ -560,26 +395,25 @@ window.addEventListener("keydown", (event) => {
    * the document, so anything scoped to the timer panel is out of reach
    * without going for the mouse.
    */
-  if (!session || !mod || !event.shiftKey || anyDialogOpen()) return;
+  if (!sessions.session || !mod || !event.shiftKey || anyDialogOpen()) return;
 
   if (event.code === "Space") {
     event.preventDefault();
-    toggleClock();
+    sessions.toggleClock();
   } else if (event.key === "Enter") {
     event.preventDefault();
-    completeFocusedTask();
+    sessions.complete();
   } else if (event.key === "." || event.key === ">") {
     event.preventDefault();
-    endSession(false);
+    sessions.stop();
   } else if (event.key.toLowerCase() === "b") {
     event.preventDefault();
-    takeBreak();
+    sessions.takeBreak();
   }
 });
 
 window.addEventListener("beforeunload", () => {
   saveState.flush();
-  persistSession();
 });
 
 // A paused tab stops ticking; catching up on return is what keeps the
