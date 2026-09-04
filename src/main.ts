@@ -22,8 +22,10 @@ import {
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
+import { createPadSync } from "./sync/pad";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
+import { createSyncView } from "./ui/syncView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
 
@@ -98,6 +100,7 @@ const saveState = debounce((doc: string) => {
   savedDoc = doc;
   store.saveDoc(doc);
   persistSession();
+  if (padSync.isOn) pushToPad();
 }, 300);
 const notifier = createNotifier(() => settings.notifications);
 const chime = createChime(() => settings.sound);
@@ -126,6 +129,21 @@ const panel = createFocusPanel(focusHost, {
 const timerSettings = createSettingsView(app, () => settings, updateSettings);
 const shortcuts = createShortcutsView(app);
 const versions = createSnapshotsView(app, () => snapshots, restoreVersion);
+
+/**
+ * Off unless switched on. While it is off nothing here runs and the pad never
+ * leaves the browser, which stays the ordinary way to use Sprintpad.
+ */
+const padSync = createPadSync({
+  store,
+  getDoc: () => editor.getDoc(),
+  // Arriving from another device is an edit like any other: undoable, and the
+  // text it replaces becomes a version of its own.
+  applyRemote: (doc) => restoreVersion(doc),
+  onStatus: () => syncPanel.refresh(),
+});
+const syncPanel = createSyncView(app, padSync, () => saveState.flush());
+const pushToPad = debounce(() => void padSync.sync(), 1500);
 const palette = createPalette(app, buildCommands);
 
 // ---------------------------------------------------------------- session ---
@@ -355,6 +373,11 @@ function buildCommands(): PaletteCommand[] {
       label: "Restore an earlier version…",
       run: () => versions.open(() => editor.focus()),
     },
+    {
+      id: "sync",
+      label: padSync.isOn ? "Sync across devices…" : "Sync across devices (advanced)…",
+      run: () => syncPanel.open(() => editor.focus()),
+    },
   ];
 }
 
@@ -362,6 +385,7 @@ function openPalette(): void {
   if (timerSettings.isOpen) timerSettings.close();
   if (shortcuts.isOpen) shortcuts.close();
   if (versions.isOpen) versions.close();
+  if (syncPanel.isOpen) syncPanel.close();
   palette.open(() => editor.focus());
 }
 
@@ -410,7 +434,7 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
 }
 
 const anyDialogOpen = () =>
-  palette.isOpen || timerSettings.isOpen || shortcuts.isOpen || versions.isOpen;
+  palette.isOpen || timerSettings.isOpen || shortcuts.isOpen || versions.isOpen || syncPanel.isOpen;
 
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
@@ -423,7 +447,8 @@ window.addEventListener("keydown", (event) => {
     if (palette.isOpen) palette.close();
     else if (timerSettings.isOpen) timerSettings.close();
     else if (shortcuts.isOpen) shortcuts.close();
-    else versions.close();
+    else if (versions.isOpen) versions.close();
+    else syncPanel.close();
     return;
   }
 
@@ -468,12 +493,18 @@ window.addEventListener("beforeunload", () => {
 // A paused tab stops ticking; catching up on return is what keeps the
 // wall-clock timer honest.
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) render();
+  if (!document.hidden) {
+    render();
+    if (padSync.isOn) void padSync.sync();
+  }
 });
 
 setInterval(render, TICK_MS);
 render();
 editor.focus();
+
+// Pick up anything another device wrote while this one was closed.
+if (padSync.isOn) void padSync.sync();
 
 // Clicking anywhere in the empty space below the document should put the
 // cursor back in it -- the workpad is the interface.

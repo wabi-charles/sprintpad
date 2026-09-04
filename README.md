@@ -154,13 +154,36 @@ directly: `src/doc/grammar.ts` and `paste.ts` (the line grammar),
 `src/focus/timer.ts` and `session.ts` (the clock and the state machine), and
 `src/data/` (storage and history). `src/main.ts` is wiring only.
 
-Storage is `localStorage`, per browser. There is no account and no server.
+Storage is `localStorage`, per browser. There is no account and no server —
+that is the default and the ordinary way to use Sprintpad.
 
 **Earlier versions.** Undo only reaches back as far as the current page — a
 reload throws its history away. So the document is copied every few minutes as
 you work, keeping the last dozen states, and `⌘K → Restore an earlier version`
 brings one back. Restoring is itself an edit: it is undoable, and the text it
 replaced becomes a version of its own.
+
+**Sync across devices (advanced, off by default).** `⌘K → Sync across devices`
+turns on an opt-in mode that keeps one pad in step across browsers. Until you
+turn it on, nothing leaves the machine.
+
+The password is not a login — it is the encryption key. The pad is encrypted in
+your browser with AES-GCM under a key stretched from that password
+(PBKDF2-SHA256, 310k iterations), so the server only ever holds an unreadable
+blob. That is why the backend has no accounts, no password hashes and no auth
+logic: there is nothing for it to check.
+
+Two consequences, neither of which can be softened:
+
+- **A forgotten password cannot be reset.** Nobody can read the pad without it.
+- Anyone with both the pad name and the password can read your list.
+
+If two devices edit the same pad apart, you are asked which to keep rather than
+one silently winning — and the other side is still in `Restore an earlier
+version`, because joining or pulling a pad snapshots what was here first.
+
+The server is `worker/` — a Cloudflare Worker of about sixty lines over a KV
+namespace. See `worker/README.md` to deploy your own.
 
 **Offline.** The app installs as a PWA and its files are cached, so it opens
 without a network. One consequence worth knowing: a page load is served from

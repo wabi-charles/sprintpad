@@ -706,3 +706,85 @@ body {
   color: var(--sp-fg-faint);
   font-size: 13px;
 }
+
+/* -------------------------------------------------------------- sync ----- */
+
+.sp-sync {
+  width: min(26rem, 100% - 32px);
+  padding: 18px 20px 20px;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-bg-elev);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-sync__title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-sync__status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--sp-fg);
+}
+
+.sp-sync__hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sp-fg-faint);
+}
+
+.sp-sync__key {
+  margin: 0 0 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--sp-border);
+  border-radius: 6px;
+  background: var(--sp-bg);
+  font-family: var(--sp-font-clock);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.sp-sync__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.sp-sync__row > span {
+  width: 5.5rem;
+  flex: none;
+}
+
+.sp-sync__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sp-border);
+  border-radius: 6px;
+  background: var(--sp-bg);
+  padding: 6px 8px;
+  color: var(--sp-fg);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.sp-sync__input:focus-visible {
+  outline: 2px solid var(--sp-accent);
+  outline-offset: 1px;
+}
+
+.sp-sync__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}

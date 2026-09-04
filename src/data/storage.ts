@@ -1,5 +1,6 @@
 import { migrateLegacyDoc } from "../doc/grammar";
 import type { TimerMode, TimerState } from "../focus/timer";
+import type { SyncedState } from "../sync/reconcile";
 import type { Snapshot } from "./snapshots";
 
 /**
@@ -31,6 +32,24 @@ export interface PersistedSession {
   timer: TimerState;
 }
 
+/**
+ * Only present once sync is switched on; absent means the pad is local to this
+ * browser, which is the default and the normal case.
+ */
+export interface SyncConfig {
+  endpoint: string;
+  padKey: string;
+  /** Per-pad salt for the key derivation; useless without the password. */
+  salt: string;
+  /**
+   * Kept here so the pad opens without retyping. The plaintext document is
+   * already in this same storage, so holding the password beside it does not
+   * widen what someone with the device can read.
+   */
+  password: string;
+  lastSynced: SyncedState | null;
+}
+
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -49,6 +68,7 @@ export const KEYS = {
   settings: "sprintpad.settings",
   session: "sprintpad.session",
   snapshots: "sprintpad.snapshots",
+  sync: "sprintpad.sync",
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -198,6 +218,45 @@ export function createStore(backend: StorageLike) {
 
     saveSnapshots(list: readonly Snapshot[]): void {
       writeRaw(KEYS.snapshots, JSON.stringify(list));
+    },
+
+    loadSync(): SyncConfig | null {
+      const stored = readJson<Partial<SyncConfig>>(KEYS.sync);
+      if (!stored || typeof stored !== "object") return null;
+      if (
+        typeof stored.endpoint !== "string" ||
+        typeof stored.padKey !== "string" ||
+        typeof stored.salt !== "string" ||
+        typeof stored.password !== "string"
+      ) {
+        return null;
+      }
+
+      const synced = stored.lastSynced;
+      const lastSynced =
+        synced && typeof synced.doc === "string" && typeof synced.updatedAt === "number"
+          ? { doc: synced.doc, updatedAt: synced.updatedAt }
+          : null;
+
+      return {
+        endpoint: stored.endpoint,
+        padKey: stored.padKey,
+        salt: stored.salt,
+        password: stored.password,
+        lastSynced,
+      };
+    },
+
+    saveSync(config: SyncConfig | null): void {
+      if (config === null) {
+        try {
+          backend.removeItem(KEYS.sync);
+        } catch {
+          // See writeRaw.
+        }
+        return;
+      }
+      writeRaw(KEYS.sync, JSON.stringify(config));
     },
 
     saveSession(session: PersistedSession | null): void {

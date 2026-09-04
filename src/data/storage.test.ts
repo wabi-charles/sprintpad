@@ -114,6 +114,47 @@ describe("snapshots", () => {
   });
 });
 
+describe("sync config", () => {
+  const config = {
+    endpoint: "https://sync.example.com",
+    padKey: "abc123def456ghi789jkl",
+    salt: "c2FsdA==",
+    password: "hunter2",
+    lastSynced: { doc: "one", updatedAt: 42 },
+  };
+
+  it("is absent until sync is switched on", () => {
+    expect(createStore(fakeBackend()).loadSync()).toBeNull();
+  });
+
+  it("round-trips", () => {
+    const backend = fakeBackend();
+    createStore(backend).saveSync(config);
+    expect(createStore(backend).loadSync()).toEqual(config);
+  });
+
+  it("clears on disconnect", () => {
+    const backend = fakeBackend();
+    const store = createStore(backend);
+    store.saveSync(config);
+    store.saveSync(null);
+    expect(store.loadSync()).toBeNull();
+  });
+
+  it("discards a config missing anything it needs", () => {
+    for (const bad of ['{"endpoint":"x"}', "{{{", '{"padKey":"y","salt":"s","password":"p"}']) {
+      expect(createStore(fakeBackend({ "sprintpad.sync": bad })).loadSync()).toBeNull();
+    }
+  });
+
+  it("drops a malformed sync point rather than the whole config", () => {
+    const backend = fakeBackend({
+      "sprintpad.sync": JSON.stringify({ ...config, lastSynced: { doc: 5 } }),
+    });
+    expect(createStore(backend).loadSync()).toMatchObject({ lastSynced: null });
+  });
+});
+
 describe("session", () => {
   const session = {
     id: "s1",

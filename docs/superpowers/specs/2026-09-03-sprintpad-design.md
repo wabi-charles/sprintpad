@@ -614,3 +614,44 @@ is. `handleDocChange` checks all of them.
 Old single-task sessions in storage are migrated on load: `taskText`/`anchor`
 become one-element arrays. A session that resolves to no tasks at all is
 discarded rather than restored.
+
+
+---
+
+## Addendum 18: optional sync, without a backend worth the name
+
+Wanted: the same pad on more than one browser, without much backend. Built as
+an **advanced mode that is off by default** -- until it is switched on, nothing
+leaves the machine, and that stays the ordinary way to use Sprintpad.
+
+The decision that shapes everything: **the password is the key, not a
+credential**. The pad is encrypted client-side (PBKDF2-SHA256 at 310k
+iterations, AES-GCM 256) and the server stores the blob. So the server needs no
+accounts, no password hashes, no sessions and no auth library -- asking for a
+password made the backend *smaller*. It is about sixty lines of Worker over a
+KV namespace.
+
+Design notes worth keeping:
+
+- **A fresh IV per write.** Reusing one under AES-GCM is catastrophic; a test
+  asserts eight writes produce eight IVs.
+- **GCM authenticates as well as encrypts**, so a wrong password and a tampered
+  payload surface as the same clean failure rather than corrupt text.
+- **The salt lives with the pad.** Joining an existing pad adopts its salt,
+  or the same password would derive a different key and open nothing.
+- **Optimistic concurrency** on write (`?prev=<updatedAt>`, 409 on mismatch),
+  so one device cannot clobber another between read and write.
+- **Conflicts ask.** Both sides changed means a choice, not a silent winner --
+  and pulling snapshots the local text first, so the discarded side is still in
+  `Restore an earlier version`. The snapshot work is what makes a
+  last-write-wins-shaped design safe to offer.
+- **The password is stored locally.** The plaintext document already sits in
+  the same localStorage, so keeping the password beside it widens nothing for
+  someone holding the device. The encryption protects the copy in transit and
+  at rest on the server.
+
+Verified end to end against a stand-in server implementing the Worker contract:
+a pad created and pushed; the server holding ciphertext with no plaintext
+anywhere in it; a second origin (separate storage) joining by pad name and
+password and pulling the first device's edit; the pre-join document kept as a
+snapshot; and a wrong password rejected with the local document untouched.
