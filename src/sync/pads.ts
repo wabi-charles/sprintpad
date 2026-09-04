@@ -1,7 +1,7 @@
 import { createStore, forgetPadLocally, type StorageLike } from "../data/storage";
 import { WrongPassword, decryptPad, derivePadKeys, encryptPad, randomSalt } from "./crypto";
 import { SYNC_ENDPOINT } from "./endpoint";
-import { createRemote } from "./remote";
+import { WriteRefused, createRemote } from "./remote";
 
 /**
  * Making a new pad from the list you are looking at.
@@ -10,27 +10,50 @@ import { createRemote } from "./remote";
  * on is still there afterwards, whether that is the local one or another pad.
  */
 
-export type CreateOutcome =
-  | { kind: "created"; padId: string }
-  | { kind: "taken" }
+export type PadOutcome =
+  | { kind: "opened" }
+  | { kind: "created" }
+  | { kind: "wrongPassword" }
   | { kind: "failed"; detail: string };
+
+/**
+ * Whether a pad is already out there. Used to tell the user which of the two
+ * things the one button in front of them is about to do, before they press it.
+ * Null when the answer is unknown -- offline, say -- which is not an error.
+ */
+export async function padExists(padId: string): Promise<boolean | null> {
+  try {
+    return (await createRemote(SYNC_ENDPOINT).get(padId)) !== null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A name and a password are all the user should have to think about. Whether
+ * that means joining a pad or making one is a question the app can answer for
+ * itself, so it does.
+ */
+export async function openOrCreatePad(
+  backend: StorageLike,
+  padId: string,
+  password: string,
+  seedDoc: string,
+): Promise<PadOutcome> {
+  const exists = await padExists(padId);
+  if (exists === null) return { kind: "failed", detail: "Could not reach the server" };
+  return exists
+    ? openExistingPad(backend, padId, password)
+    : createPad(backend, padId, password, seedDoc);
+}
 
 export async function createPad(
   backend: StorageLike,
   padId: string,
   password: string,
   seedDoc: string,
-): Promise<CreateOutcome> {
+): Promise<PadOutcome> {
   const remote = createRemote(SYNC_ENDPOINT);
-
-  try {
-    // Refuse to write over a pad that already exists, even if we could: the
-    // owner may simply need to open it instead.
-    if (await remote.get(padId)) return { kind: "taken" };
-  } catch (error) {
-    return { kind: "failed", detail: error instanceof Error ? error.message : "Could not reach the server" };
-  }
-
   const salt = randomSalt();
   const keys = await derivePadKeys(password, salt);
 
@@ -41,19 +64,15 @@ export async function createPad(
     const store = createStore(backend, padId);
     store.saveDoc(seedDoc);
     store.saveCredentials({ salt, password, lastSynced: { doc: seedDoc, updatedAt } });
-    return { kind: "created", padId };
+    return { kind: "created" };
   } catch (error) {
     // Leave nothing half-made behind.
     forgetPadLocally(backend, padId);
+    // Someone claimed the name between our check and our write.
+    if (error instanceof WriteRefused) return { kind: "wrongPassword" };
     return { kind: "failed", detail: error instanceof Error ? error.message : "Could not create the pad" };
   }
 }
-
-export type OpenOutcome =
-  | { kind: "opened" }
-  | { kind: "missing" }
-  | { kind: "wrongPassword" }
-  | { kind: "failed"; detail: string };
 
 /**
  * Adds a pad that already exists to this device.
@@ -66,7 +85,7 @@ export async function openExistingPad(
   backend: StorageLike,
   padId: string,
   password: string,
-): Promise<OpenOutcome> {
+): Promise<PadOutcome> {
   let stored;
   try {
     stored = await createRemote(SYNC_ENDPOINT).get(padId);
@@ -76,7 +95,7 @@ export async function openExistingPad(
       detail: error instanceof Error ? error.message : "Could not reach the server",
     };
   }
-  if (!stored) return { kind: "missing" };
+  if (!stored) return { kind: "failed", detail: "That pad disappeared. Try again." };
 
   try {
     // The pad's own salt, or the password derives a key that opens nothing.

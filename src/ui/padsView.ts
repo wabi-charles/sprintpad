@@ -1,5 +1,5 @@
 import { forgetPadLocally, knownPadIds, type StorageLike } from "../data/storage";
-import { createPad, deletePadEverywhere, openExistingPad } from "../sync/pads";
+import { deletePadEverywhere, openOrCreatePad, padExists } from "../sync/pads";
 import type { PadSync, SyncStatus } from "../sync/pad";
 import { describePadIdProblem, normalizePadId, padIdProblem, padUrl } from "../sync/padId";
 
@@ -130,7 +130,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
             async () => {
               const result = await deletePadEverywhere(hooks.backend, padId);
               confirming = null;
-              if (!result.ok) problem(result.detail ?? "Could not delete the pad");
+              if (!result.ok) listNote(result.detail ?? "Could not delete the pad");
               else if (isHere) location.assign("/");
               else paint();
             },
@@ -158,70 +158,72 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       box.append(row(padId, isHere ? statusFor(padId) : "syncs across devices", controls, isHere));
     }
 
-    section("Open a pad", "Made on another device? Name it and it joins this one.");
-    const open = fields();
-    const openTrouble = problemLine();
-    const openButton = button(
-      "Open pad",
+    // Failures from the list's own buttons, reported under the list itself.
+    const listNote = problemLine();
+
+    section(
+      "Add a pad",
+      "One name, one password. If the pad exists you join it; if it does not, " +
+        "it is made as a copy of the list you are looking at now. The password is the key — " +
+        "the server cannot read a pad, and nobody can reset it.",
+    );
+
+    const pad = fields();
+    const note = problemLine();
+
+    const submit = button(
+      "Open or create pad",
       async () => {
-        const padId = normalizePadId(open.name.value);
+        const padId = normalizePadId(pad.name.value);
         const shape = padIdProblem(padId);
-        if (shape) return openTrouble(describePadIdProblem(shape));
-        if (open.password.value === "") return openTrouble("Enter the pad's password.");
+        if (shape) return note(describePadIdProblem(shape));
+        if (pad.password.value === "") return note("Enter a password. It cannot be reset.");
 
-        openButton.disabled = true;
-        openTrouble("Opening…");
-        const result = await openExistingPad(hooks.backend, padId, open.password.value);
-        openButton.disabled = false;
+        submit.disabled = true;
+        note("Working…");
+        const result = await openOrCreatePad(
+          hooks.backend,
+          padId,
+          pad.password.value,
+          hooks.getDoc(),
+        );
+        submit.disabled = false;
 
-        if (result.kind === "opened") location.assign(padUrl(padId));
-        else if (result.kind === "missing") openTrouble("No pad by that name. Create it below.");
-        else if (result.kind === "wrongPassword") openTrouble("That password does not open this pad.");
-        else openTrouble(result.detail);
+        if (result.kind === "opened" || result.kind === "created") location.assign(padUrl(padId));
+        else if (result.kind === "wrongPassword") note("That password does not open this pad.");
+        else note(result.detail);
       },
       " sp-btn--primary",
     );
-    submitOn([open.name, open.password], openButton);
-    buttonRow(openButton);
+    submitOn([pad.name, pad.password], submit);
+    buttonRow(submit);
 
-    const subheading = document.createElement("h3");
-    subheading.className = "sp-pads__subtitle";
-    subheading.textContent = "New pad";
-    box.append(subheading);
+    /*
+     * Which of the two things the button will do, said before it is pressed --
+     * otherwise a mistyped name quietly makes a pad instead of opening one.
+     */
+    let checking: ReturnType<typeof setTimeout> | null = null;
+    pad.name.addEventListener("input", () => {
+      if (checking) clearTimeout(checking);
+      submit.textContent = "Open or create pad";
+      note("");
 
-    hint(
-      "A new pad gets its own address and starts as a copy of the list you are looking at now. " +
-        "The password is the key — the server cannot read the pad, and nobody can reset it.",
-    );
+      const padId = normalizePadId(pad.name.value);
+      if (padIdProblem(padId) !== null) return;
 
-    const made = fields();
-    const problem = problemLine();
-
-    const create = button(
-      "Create pad",
-      async () => {
-        const padId = normalizePadId(made.name.value);
-        const shape = padIdProblem(padId);
-        if (shape) return problem(describePadIdProblem(shape));
-        if (made.password.value === "") return problem("Choose a password. It cannot be reset.");
-
-        create.disabled = true;
-        problem("Creating…");
-        const result = await createPad(hooks.backend, padId, made.password.value, hooks.getDoc());
-        create.disabled = false;
-
-        if (result.kind === "created") location.assign(padUrl(padId));
-        else if (result.kind === "taken") {
-          // Not a dead end: that pad is very likely theirs.
-          problem("That name is taken — open it above instead.");
-          open.name.value = padId;
-          open.name.focus();
-        } else problem(result.detail);
-      },
-      " sp-btn--primary",
-    );
-    submitOn([made.name, made.password], create);
-    buttonRow(create);
+      checking = setTimeout(async () => {
+        const exists = await padExists(padId);
+        // The field may have moved on while we asked.
+        if (normalizePadId(pad.name.value) !== padId) return;
+        if (exists === null) return;
+        submit.textContent = exists ? "Open pad" : "Create pad";
+        note(
+          exists
+            ? "That pad exists — enter its password to join it here."
+            : "New pad — starts as a copy of the list you are looking at.",
+        );
+      }, 400);
+    });
 
     function section(title: string, blurb: string): void {
       const el = document.createElement("h3");

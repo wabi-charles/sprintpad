@@ -874,3 +874,23 @@ Verified across two origins with separate storage: a pad made on the first with
 distinctive content, then opened on the second by name and password, arriving
 with that content and no prompt. Both failure paths too -- an unknown name, and
 a wrong password, which leaves no trace on the device.
+
+
+---
+
+## Addendum 27: one form, not two
+
+The previous addendum split "open a pad" from "make a pad" into two sections,
+each with a name and a password. That is the implementation's distinction, not
+the user's: they have a name and a password and want the list behind it.
+
+One form now. If the pad exists you join it; if not, it is created. The one
+real objection to merging -- that a mistyped name quietly makes a pad instead
+of opening one -- is answered rather than accepted: the name field checks
+existence as you type, and the button reads "Open pad" or "Create pad"
+accordingly, with a line saying which. When the check cannot run, the button
+stays "Open or create pad" and the submit still does the right thing.
+
+The check is debounced and ignores its own result if the field has moved on
+since, so a fast typist cannot be shown a verdict about a name they are no
+longer typing.

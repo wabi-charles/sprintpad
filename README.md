@@ -181,14 +181,12 @@ pad: `sprintpad.app` on its own is always the local browser list, and it keeps
 its own document, history and session, entirely separate from every pad.
 
 `⌘K → Pads` lists the pads this device knows, shows which is open, and is where
-you make, open and remove them.
+you add and remove them.
 
-- **Open a pad** — for a pad made somewhere else. A new device has never heard
-  of it, so it cannot appear in a list until you name it; give the name and
-  password and it joins this device.
-- **New pad** — starts as a **copy of the list you are looking at**, so turning
-  your local list into a synced one takes a name and a password and nothing
-  else. The local list stays where it was.
+Adding one is a name and a password. If the pad exists you join it; if it does
+not, it is made as a **copy of the list you are looking at** — the local list
+stays where it was. The button says which of the two it is about to do, so a
+mistyped name cannot quietly make a pad instead of opening one.
 
 Removing a pad comes in two strengths, deliberately: **Remove here** forgets it
 on this device only, while **Delete** removes it for every device and needs a
