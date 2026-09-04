@@ -8,7 +8,7 @@
   --sp-accent: #b45309;
   --sp-accent-soft: #fdf0e2;
   --sp-border: #e7e2db;
-  --sp-active-line: #f3f0ea;
+  --sp-active-line: #f7f5f0;
   --sp-shadow: 0 12px 40px rgb(28 26 23 / 12%);
   --sp-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --sp-font-doc: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -27,7 +27,7 @@
     --sp-accent: #f0a04b;
     --sp-accent-soft: #2b2216;
     --sp-border: #2c2924;
-    --sp-active-line: #1c1a15;
+    --sp-active-line: #1a1813;
     --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
     color-scheme: dark;
   }
@@ -42,7 +42,7 @@
   --sp-accent: #f0a04b;
   --sp-accent-soft: #2b2216;
   --sp-border: #2c2924;
-  --sp-active-line: #1c1a15;
+  --sp-active-line: #1a1813;
   --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
@@ -283,8 +283,17 @@ body {
   color: var(--sp-accent);
 }
 
+/*
+ * Quiet on purpose. The caret already says where you are, so this only has to
+ * say which task ⌘Enter and ⌘D will act on: the task's own checkbox darkens,
+ * over a tint barely off the page colour to make the row findable at a glance.
+ */
 .sp-line--cursor {
   background: var(--sp-active-line);
+}
+
+.sp-line--cursor .sp-check:not(.sp-check--on) {
+  color: var(--sp-fg-dim);
 }
 
 /* A running focus session outranks the cursor's line. */

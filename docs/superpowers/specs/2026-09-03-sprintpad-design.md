@@ -452,3 +452,10 @@ line selection puts the head on the *next* line, so it marked the wrong task --
 reintroducing the confusion this was meant to remove. Ours is drawn only when
 the selection is a single empty cursor; a selection already shows its own
 extent.
+
+The first attempt used a band at `#f3f0ea`, which read as a highlight rather
+than a hint. Two changes: the tint dropped to `#f7f5f0`, a few units off the
+page colour, and the cursor's own checkbox darkens from `--sp-fg-faint` to
+`--sp-fg-dim`. The checkbox carries the meaning -- it is the thing ⌘Enter and
+⌘D act on -- and the tint only makes the row findable at a glance. Checkbox
+alone was measurably different but too hard to spot while scanning.
