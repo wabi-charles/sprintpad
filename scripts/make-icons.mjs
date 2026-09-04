@@ -27,13 +27,16 @@ function chunk(type, data) {
   return Buffer.concat([head, data, crc]);
 }
 
-/** An open checkbox: the app's one recurring shape. */
-function pixels(size) {
+/**
+ * An open checkbox: the app's one recurring shape. Small sizes take a bolder
+ * weight -- a hairline outline disappears in a 16px tab strip.
+ */
+function pixels(size, bold = false) {
   const px = (n) => Math.round(size * n);
-  const inset = px(0.24);
+  const inset = px(bold ? 0.19 : 0.24);
   const right = size - inset;
-  const stroke = Math.max(2, px(0.055));
-  const radius = px(0.045);
+  const stroke = Math.max(2, px(bold ? 0.1 : 0.055));
+  const radius = px(bold ? 0.06 : 0.045);
 
   const rows = [];
   for (let y = 0; y < size; y++) {
@@ -58,7 +61,7 @@ function pixels(size) {
   return Buffer.concat(rows);
 }
 
-function png(size) {
+function png(size, bold = false) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
@@ -67,13 +70,20 @@ function png(size) {
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(pixels(size), { level: 9 })),
+    chunk("IDAT", deflateSync(pixels(size, bold), { level: 9 })),
     chunk("IEND", Buffer.alloc(0)),
   ]);
 }
 
-for (const size of [192, 512, 180]) {
-  const name = size === 180 ? "apple-touch-icon.png" : `icon-${size}.png`;
-  writeFileSync(new URL(`../public/${name}`, import.meta.url), png(size));
-  console.log(`public/${name}  ${size}x${size}`);
+const targets = [
+  { size: 192, name: "icon-192.png" },
+  { size: 512, name: "icon-512.png" },
+  { size: 180, name: "apple-touch-icon.png" },
+  // Fallback for browsers that will not take an SVG favicon.
+  { size: 32, name: "favicon-32.png", bold: true },
+];
+
+for (const { size, name, bold } of targets) {
+  writeFileSync(new URL(`../public/${name}`, import.meta.url), png(size, bold));
+  console.log(`public/${name}  ${size}x${size}${bold ? "  (bold)" : ""}`);
 }

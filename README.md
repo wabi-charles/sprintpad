@@ -163,7 +163,9 @@ brings one back. Restoring is itself an edit: it is undoable, and the text it
 replaced becomes a version of its own.
 
 **Offline.** The app installs as a PWA and its files are cached, so it opens
-without a network. Your list never needed a server; now the page doesn't
+without a network. One consequence worth knowing: a page load is served from
+cache, so a new deploy appears on the *next* load rather than the one where it
+was fetched. Reload twice if you are checking whether something shipped. Your list never needed a server; now the page doesn't
 either. A deploy is picked up on the next load rather than stranding you on a
 cached build.
 

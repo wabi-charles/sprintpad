@@ -26,7 +26,7 @@ export default defineConfig({
       },
       workbox: {
         // CNAME has no extension and must not be precached.
-        globPatterns: ["**/*.{js,css,html,png}"],
+        globPatterns: ["**/*.{js,css,html,png,svg}"],
       },
     }),
   ],
