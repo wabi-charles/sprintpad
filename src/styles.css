@@ -8,6 +8,7 @@
   --sp-accent: #b45309;
   --sp-accent-soft: #fdf0e2;
   --sp-border: #e7e2db;
+  --sp-active-line: #f3f0ea;
   --sp-shadow: 0 12px 40px rgb(28 26 23 / 12%);
   --sp-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --sp-font-doc: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -26,6 +27,7 @@
     --sp-accent: #f0a04b;
     --sp-accent-soft: #2b2216;
     --sp-border: #2c2924;
+    --sp-active-line: #1c1a15;
     --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
     color-scheme: dark;
   }
@@ -40,6 +42,7 @@
   --sp-accent: #f0a04b;
   --sp-accent-soft: #2b2216;
   --sp-border: #2c2924;
+  --sp-active-line: #1c1a15;
   --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
@@ -259,21 +262,34 @@ body {
   overflow-y: auto;
 }
 
+/*
+ * Width and an equal negative margin cancel out, so the box paints in the
+ * line's left padding while advancing the text by nothing. See the note on
+ * CheckboxWidget: any real advance here is caught by the selection rect of
+ * the line above.
+ */
 .sp-check {
   display: inline-block;
-  width: 1.15em;
-  margin-right: 0.15em;
+  width: 18px;
+  margin-left: -18px;
+  text-align: center;
   color: var(--sp-fg-faint);
   cursor: pointer;
   user-select: none;
 }
 
-.sp-check:hover {
+.sp-check:hover,
+.sp-check--on {
   color: var(--sp-accent);
 }
 
-.sp-check--on {
-  color: var(--sp-accent);
+.sp-line--cursor {
+  background: var(--sp-active-line);
+}
+
+/* A running focus session outranks the cursor's line. */
+.cm-line.sp-line--focused {
+  background: var(--sp-accent-soft);
 }
 
 .sp-line--done {

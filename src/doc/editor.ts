@@ -43,7 +43,13 @@ const baseTheme = EditorView.theme({
     borderLeft: "1.5px solid var(--sp-accent)",
     marginLeft: "0",
   },
-  ".cm-line": { padding: "0 4px" },
+  /*
+   * Left padding is the gutter the checkbox is drawn into, and must be in px:
+   * `em` resolves against each line's own font-size, so headers (11px) would
+   * get a different gutter from tasks (15px) -- and `rectanglesForRange` reads
+   * one line's value and applies it to every selection rect.
+   */
+  ".cm-line": { padding: "0 4px 0 22px" },
   /*
    * Header spacing lives here, next to the rule it competes with: CodeMirror's
    * generated theme matches `.cm-line` at the same specificity as a plain class
@@ -52,6 +58,11 @@ const baseTheme = EditorView.theme({
    * It must also be padding rather than margin -- CodeMirror maps a click to a
    * document position by measuring line boxes, and a margin falls outside that
    * box, which put every click on a header onto the line below it.
+   */
+  /*
+   * Padding-left must be identical on every line: `rectanglesForRange` reads
+   * it from whichever line happens to be first in the DOM and uses that as the
+   * left edge of every selection rect.
    */
   ".cm-line.sp-line--header": { paddingTop: "1.1em" },
 });

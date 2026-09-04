@@ -412,3 +412,43 @@ word. That is a code-editor affordance -- useful when you are about to rename a
 symbol, noise when you are reading a task list, where repeated words like
 "Press" or a project name are ordinary prose rather than something to track.
 Removed along with its `.cm-selectionMatch` styling.
+
+
+---
+
+## Addendum 11: selecting a line lit up the next task's checkbox
+
+Selecting a whole line takes the trailing newline with it, so the range ends at
+the *start* of the next line. CodeMirror's `rectanglesForRange` deliberately
+measures that end from the right of the position:
+
+```js
+let toCoords = view.coordsAtPos(to, (to == line.from ? 2 : -2));
+```
+
+So the rect ran from the line's left edge to the far side of the next line's
+checkbox widget. The widget's `side` is irrelevant here -- only its geometry
+counts. Two independent causes had to go:
+
+**The widget occupied a column.** It is now `width: 18px` with
+`margin-left: -18px`, cancelling to a net advance of zero: painted in the
+line's left gutter, contributing nothing to the text position.
+
+**The gutter was sized in `em`.** `rectanglesForRange` reads `padding-left`
+from whichever line is first in the DOM and applies it to every rect, and `em`
+resolves against each line's own font-size -- headers are 11px, tasks 15px, a
+6px discrepancy. The gutter is now a fixed 22px, and per-line `padding-left`
+overrides are off limits for the same reason.
+
+Measured result: the second rect went 19.5px -> 6.5px -> 0.
+
+## Addendum 12: a cursor-line indicator
+
+`⌘Enter` and `⌘D` act on the task at the cursor, which was invisible. The line
+under the cursor is now tinted.
+
+Not CodeMirror's `highlightActiveLine`: that follows the selection head, and a
+line selection puts the head on the *next* line, so it marked the wrong task --
+reintroducing the confusion this was meant to remove. Ours is drawn only when
+the selection is a single empty cursor; a selection already shows its own
+extent.
