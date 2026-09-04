@@ -9,6 +9,7 @@ import {
 } from "@codemirror/view";
 import { anchoredLines, focusAnchorsField } from "./focusField";
 import { parseLine } from "./grammar";
+import { findLinks } from "./links";
 import { pendingTaskField, pendingTaskLine } from "./pendingTask";
 
 /**
@@ -46,6 +47,44 @@ class CheckboxWidget extends WidgetType {
     return false;
   }
 }
+
+/**
+ * A pasted URL is drawn short and clickable, but only while the caret is
+ * elsewhere. Put the caret on the line and the real address comes back, so a
+ * link stays as editable as any other run of text -- the document never held
+ * anything but the URL to begin with.
+ */
+class LinkWidget extends WidgetType {
+  constructor(
+    readonly href: string,
+    readonly label: string,
+  ) {
+    super();
+  }
+
+  eq(other: LinkWidget): boolean {
+    return other.href === this.href && other.label === this.label;
+  }
+
+  toDOM(): HTMLElement {
+    const anchor = document.createElement("a");
+    anchor.className = "sp-link";
+    anchor.href = this.href;
+    anchor.textContent = this.label;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.title = this.href;
+    return anchor;
+  }
+
+  /** Let the anchor navigate natively instead of CodeMirror placing a caret. */
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** Marks the raw URL while the caret is on its line, so it still reads as one. */
+const rawLink = Decoration.mark({ class: "sp-link sp-link--raw" });
 
 const doneLine = Decoration.line({ class: "sp-line sp-line--done" });
 const openLine = Decoration.line({ class: "sp-line sp-line--task" });
@@ -112,6 +151,20 @@ function build(view: EditorView): DecorationSet {
         );
       } else if (parsed.kind === "header") {
         builder.add(line.from + parsed.markerFrom, line.from + parsed.markerTo, hideMarker);
+      }
+
+      // After the marker, whose decorations start at or before these do.
+      for (const link of findLinks(line.text)) {
+        const from = line.from + link.from;
+        if (from < line.from + parsed.markerTo) continue;
+        const to = line.from + link.to;
+        builder.add(
+          from,
+          to,
+          atCursor === line.from
+            ? rawLink
+            : Decoration.replace({ widget: new LinkWidget(link.href, link.label) }),
+        );
       }
 
       pos = line.to + 1;

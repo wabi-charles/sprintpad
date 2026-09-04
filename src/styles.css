@@ -9,6 +9,7 @@
   --sp-accent-soft: #fdf0e2;
   --sp-border: #e7e2db;
   --sp-cursor-rule: #cfc7bc;
+  --sp-link-rule: #e5c39a;
   --sp-shadow: 0 12px 40px rgb(28 26 23 / 12%);
   --sp-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --sp-font-doc: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -28,6 +29,7 @@
     --sp-accent-soft: #2b2216;
     --sp-border: #2c2924;
     --sp-cursor-rule: #4a443c;
+    --sp-link-rule: #6b5433;
     --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
     color-scheme: dark;
   }
@@ -43,6 +45,7 @@
   --sp-accent-soft: #2b2216;
   --sp-border: #2c2924;
   --sp-cursor-rule: #4a443c;
+  --sp-link-rule: #6b5433;
   --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
@@ -433,29 +436,68 @@ body {
  * ⌘Enter and ⌘D will act on without competing with the text.
  *
  * A fixed height rather than an inset shadow, which would stretch to the whole
- * line box -- and a header's box carries its spacing as padding, so its rule
- * came out half again as tall as a task's. Anchored to the bottom, because the
- * padding is on top and the text always sits at the foot of the box.
+ * line box -- and a long task wraps, so that box can be several rows tall.
+ * Anchored to the top for the same reason: the rule belongs beside the
+ * checkbox on the first row, not at the foot of however far the text ran on.
+ * The offsets centre it on that first row, and a header's is larger because a
+ * header carries its spacing as padding above the text.
  */
 .sp-line--cursor::before {
   content: "";
   position: absolute;
   left: 0;
-  bottom: 4px;
+  top: 4px;
   width: 2px;
   height: 18px;
   border-radius: 1px;
   background: var(--sp-cursor-rule);
 }
 
+/* Two classes, so this outranks the coarse-pointer offset below as well. */
 .sp-line--cursor.sp-line--header::before {
-  bottom: 1px;
+  top: 12px;
+}
+
+/* Touch rows are taller: bigger text, plus padding to make them tappable. */
+@media (pointer: coarse) {
+  .sp-line--cursor::before {
+    top: 10px;
+  }
 }
 
 /* A running focus session outranks the cursor's line. */
 .cm-line.sp-line--focused {
   background: var(--sp-accent-soft);
   box-shadow: -6px 0 0 0 var(--sp-accent-soft), inset 2px 0 0 0 var(--sp-accent);
+}
+
+/*
+ * A link reads as one at a glance without shouting: the accent plus a rule
+ * under it, which is what Slack and Notion settle on too. The raw form -- what
+ * you see once the caret is on the line -- gets the same colour but a dotted
+ * rule, so it is clear you are looking at the address rather than the label.
+ */
+.sp-link {
+  color: var(--sp-accent);
+  text-decoration: underline;
+  text-decoration-color: var(--sp-link-rule);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.sp-link:hover {
+  text-decoration-color: var(--sp-accent);
+}
+
+.sp-link--raw {
+  text-decoration-style: dotted;
+  cursor: text;
+}
+
+/* A done task's strikethrough has to survive its links. */
+.sp-line--done .sp-link {
+  color: var(--sp-fg-faint);
+  text-decoration-color: transparent;
 }
 
 .sp-line--done {
