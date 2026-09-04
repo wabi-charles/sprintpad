@@ -198,3 +198,46 @@ describe("turning sync off", () => {
     expect(server.handler.mock.calls.length).toBe(calls);
   });
 });
+
+describe("a connection that fails", () => {
+  it("leaves the browser local, with nothing stored", async () => {
+    const first = harness("# TODAY\nSecret");
+    await first.sync.connect("", "right");
+
+    const second = harness("# TODAY\nMine");
+    await second.sync.connect(first.sync.padKey!, "wrong");
+
+    // Otherwise every later visit comes up in a broken sync state.
+    expect(second.sync.isOn).toBe(false);
+    expect(second.store.loadSync()).toBeNull();
+    expect(second.sync.status).toMatchObject({ kind: "error" });
+  });
+
+  it("leaves nothing stored when the server cannot be reached", async () => {
+    const { sync, store } = harness("one");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    await sync.connect("", "pw");
+
+    expect(sync.isOn).toBe(false);
+    expect(store.loadSync()).toBeNull();
+  });
+
+  it("does not disturb a pad that was already working", async () => {
+    const { sync, store } = harness("one");
+    await sync.connect("", "pw");
+    const working = store.loadSync();
+
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    await sync.connect("someone-elses-pad-key", "pw");
+
+    expect(sync.isOn).toBe(true);
+    expect(store.loadSync()).toEqual(working);
+  });
+
+  it("stores the pad only once a sync has actually succeeded", async () => {
+    const { sync, store } = harness("one");
+    expect(store.loadSync()).toBeNull();
+    await sync.connect("", "pw");
+    expect(store.loadSync()?.padKey).toBe(sync.padKey);
+  });
+});

@@ -124,8 +124,18 @@ export function createPadSync(hooks: PadSyncHooks) {
       return config?.padKey ?? null;
     },
 
-    /** Connect to a pad, creating a key when none is given. */
+    /**
+     * Connect to a pad, creating a key when none is given.
+     *
+     * Nothing is written until a sync actually succeeds. A wrong password or
+     * an unreachable server used to leave a config behind, which meant every
+     * later visit -- including a plain load of the site with no link -- came
+     * up in a broken sync state asking to be repaired. Failing here leaves the
+     * browser exactly as it was: local, with no password anywhere in sight.
+     */
     async connect(padKey: string, password: string): Promise<void> {
+      const previous = config;
+
       config = {
         padKey: padKey.trim() === "" ? randomPadKey() : padKey.trim(),
         salt: randomSalt(),
@@ -140,11 +150,17 @@ export function createPadSync(hooks: PadSyncHooks) {
         const stored = await createRemote(SYNC_ENDPOINT).get(config.padKey);
         if (stored) config = { ...config, salt: stored.payload.salt };
       } catch {
-        // Offline at setup: the first successful sync will settle it.
+        // Offline at setup; the sync below will report it and roll back.
       }
 
-      persist();
+      // A successful pass persists on its own; anything else rolls back and
+      // leaves the failure on screen so it is clear why.
       await sync();
+      if (status.kind !== "synced") {
+        config = previous;
+        key = null;
+        persist();
+      }
     },
 
     disconnect(): void {

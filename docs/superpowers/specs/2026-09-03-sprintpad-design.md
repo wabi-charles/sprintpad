@@ -729,3 +729,24 @@ the button elements survive a re-render so focus is not dropped every tick.
 Still uncovered: `main.ts` itself, which would need the app split into a
 controller to be testable. Worth doing when it next needs real change, not
 before.
+
+
+---
+
+## Addendum 22: a plain load is never a password prompt
+
+`connect` wrote the sync config before the first sync ran, so a wrong password
+or an unreachable server left one behind. From then on every load -- including
+a plain visit with no link -- came up in a failing sync state, asking to be
+repaired, with the only way out buried in the palette. For a product whose
+pitch is "open it and start typing", that is the worst possible first screen,
+and it could be reached by one typo.
+
+Nothing is persisted now until a pass actually succeeds; anything else rolls
+back to whatever was there before, leaving the error on screen so the reason is
+clear. A failed attempt cannot disturb a pad that was already working, which is
+its own test.
+
+The invariant worth stating plainly: **the site loaded plainly is always the
+local browser pad.** Only a pad link opens the password prompt, and the key is
+stripped from the address bar as it does.
