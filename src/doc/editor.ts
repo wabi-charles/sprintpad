@@ -49,7 +49,7 @@ const baseTheme = EditorView.theme({
    * get a different gutter from tasks (15px) -- and `rectanglesForRange` reads
    * one line's value and applies it to every selection rect.
    */
-  ".cm-line": { padding: "0 4px 0 22px" },
+  ".cm-line": { padding: "0 4px 0 22px", position: "relative" },
   /*
    * Header spacing lives here, next to the rule it competes with: CodeMirror's
    * generated theme matches `.cm-line` at the same specificity as a plain class

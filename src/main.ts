@@ -45,6 +45,12 @@ const STARTER_DOC = [
 ].join("\n");
 
 const TICK_MS = 250;
+/**
+ * How long the focused task may be absent from the document before the session
+ * is treated as orphaned. Long enough to survive a cut and paste, short enough
+ * that the panel never sits there naming a task that no longer exists.
+ */
+const ORPHAN_GRACE_MS = 2000;
 /** How long the "you finished it" line stays up before returning to idle. */
 const FINISHED_MS = 5000;
 
@@ -53,6 +59,7 @@ let settings: Settings = store.loadSettings();
 let session: FocusSession | null = null;
 let finished: { task: string; focused: string; until: number } | null = null;
 let announcedExpiry: string | null = null;
+let taskMissingSince: number | null = null;
 
 const app = document.getElementById("app")!;
 
@@ -133,6 +140,7 @@ function startFocus(target: TaskTarget): void {
   });
   finished = null;
   announcedExpiry = null;
+  taskMissingSince = null;
   editor.anchorTo(target.from);
   persistSession();
   void notifier.request();
@@ -150,6 +158,7 @@ function endSession(completed: boolean): void {
   }
   session = null;
   announcedExpiry = null;
+  taskMissingSince = null;
   editor.clearAnchor();
   persistSession();
   render();
@@ -225,6 +234,18 @@ function render(): void {
       notifier.notify("Break over", "Ready for the next one.");
       endSession(false);
       return;
+    }
+
+    // A session belongs to a task. Once that task is gone from the document,
+    // the panel is naming something that no longer exists.
+    if (resolveFocusedLine(editor.view.state, session.taskText)) {
+      taskMissingSince = null;
+    } else {
+      taskMissingSince ??= now;
+      if (now - taskMissingSince > ORPHAN_GRACE_MS) {
+        endSession(false);
+        return;
+      }
     }
   }
 

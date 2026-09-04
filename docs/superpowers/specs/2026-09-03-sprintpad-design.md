@@ -478,3 +478,32 @@ focusing" in the panel as the thing being worked on. The starter document is
 placeholder content now. The idle panel already teaches ⌘Enter, and the
 shortcut sheet added in addendum 9 teaches the rest -- which is what made the
 tutorial text redundant.
+
+
+---
+
+## Addendum 14: an even rule, and orphaned sessions
+
+**The header's rule was taller than a task's.** `box-shadow: inset` stretches to
+the whole line box, and a header carries its spacing as `padding-top` -- 31.3px
+against a task's 26.3px. The rule is a pseudo-element with a fixed 18px height
+now, anchored to the bottom of the box because the padding is on top and the
+text always sits at the foot of it. Headers offset by 1px, tasks by 4px, so
+both land on their own text row.
+
+**A session outlived its task.** The panel kept naming a task that had been
+deleted from the document -- the fallback in `resolveFocusedLine` exists to
+survive a cut and paste, and with nothing to find it simply held the title
+captured at session start. So the panel sat there reading "FOCUS COMPLETE: Put
+the cursor on this line and press ⌘Enter to start focusing" over a document
+that contained no such line.
+
+A session belongs to a task; without one it is orphaned. `render` now ends a
+session whose task has been absent for more than two seconds -- long enough to
+survive the cut-and-paste case the fallback was built for, short enough that
+the panel never sits there describing something that no longer exists.
+
+Worth recording: the previous addendum blamed this on the starter document's
+tutorial text. That was wrong. Replacing the starter content was a good change
+on its own terms, but it was not the cause, and it would not have fixed an
+existing document.

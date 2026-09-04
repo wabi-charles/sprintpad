@@ -290,11 +290,26 @@ body {
  */
 /*
  * A rule in the left margin, not a wash across the row: it marks which task
- * ⌘Enter and ⌘D will act on without competing with the text. An inset shadow
- * rather than a border so the line's layout is untouched.
+ * ⌘Enter and ⌘D will act on without competing with the text.
+ *
+ * A fixed height rather than an inset shadow, which would stretch to the whole
+ * line box -- and a header's box carries its spacing as padding, so its rule
+ * came out half again as tall as a task's. Anchored to the bottom, because the
+ * padding is on top and the text always sits at the foot of the box.
  */
-.sp-line--cursor {
-  box-shadow: inset 2px 0 0 0 var(--sp-cursor-rule);
+.sp-line--cursor::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 4px;
+  width: 2px;
+  height: 18px;
+  border-radius: 1px;
+  background: var(--sp-cursor-rule);
+}
+
+.sp-line--cursor.sp-line--header::before {
+  bottom: 1px;
 }
 
 /* A running focus session outranks the cursor's line. */
