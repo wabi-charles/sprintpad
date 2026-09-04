@@ -111,8 +111,8 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
 
     box.append(
       row(
-        "This browser",
-        "stays on this device",
+        "Local",
+        "stays in this browser",
         here === null ? [] : [button("Open", () => location.assign("/"))],
         here === null,
       ),

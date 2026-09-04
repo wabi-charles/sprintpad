@@ -939,11 +939,27 @@ green for synced, amber for anything wanting attention, pulsing while it works
 (and still, under `prefers-reduced-motion`). The badge opens the pad manager,
 which is the thing you would want next.
 
-Nothing is shown at the root. The absence is the signal: no badge means the
-list is local, which is the default and the common case, and labelling it would
-add chrome to every ordinary visit to say nothing.
+(Superseded by addendum 31: the root shows a badge too.)
 
 One bug found while checking it: the badge was blank on a locked pad, because
 `onStatus` fires on *change* and a session that opens already locked never
 changes. State that a callback only reports on transition still has to be read
 once at startup.
+
+
+---
+
+## Addendum 31: the local list gets a badge too
+
+Showing the badge only on a pad was wrong. The argument for it -- that the
+absence is the signal -- assumed a reader who already knows there is something
+to be absent. At the root it just left a gap where the badge sits on every
+other page, and nothing on screen suggested pads existed at all.
+
+The badge is always there now: **Local** with a hollow dot, or the pad's name
+with a filled one. The same shape in both states, saying either "nothing to
+keep up with" or how the keeping-up is going -- and from the root it is the
+visible way into the pad manager, which previously required knowing ⌘K.
+
+The pad list calls the same thing "Local" now rather than "This browser", since
+two names for one thing is its own small confusion.

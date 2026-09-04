@@ -95,18 +95,18 @@ brand.className = "sp-bar__brand";
 brand.textContent = "SPRINTPAD";
 
 /*
- * Which pad you are in. A pad and the local list look identical otherwise, so
- * without this the only clue is the address bar. Absent at the root, where
- * there is nothing to say: that is the default.
+ * Which list you are looking at. A pad and the local list are identical on
+ * screen, so the badge is always present rather than appearing only on a pad:
+ * "Local" is a statement, where an empty space is merely an absence, and it
+ * gives the pad manager somewhere to be found from the root.
  */
 const padBadge = document.createElement("button");
 padBadge.type = "button";
 padBadge.className = "sp-bar__pad";
-padBadge.hidden = activePadId === null;
-if (activePadId !== null) {
+{
   const name = document.createElement("span");
   name.className = "sp-bar__padname";
-  name.textContent = activePadId;
+  name.textContent = activePadId ?? "Local";
   const dot = document.createElement("span");
   dot.className = "sp-bar__dot";
   padBadge.append(name, dot);
@@ -188,8 +188,11 @@ const padSync = createPadSync({
 });
 const unlockPanel = createUnlockView(app, padSync, () => saveState.flush());
 function showPadStatus(status: SyncStatus): void {
-  if (activePadId === null) return;
   padBadge.dataset.state = status.kind;
+  if (activePadId === null) {
+    padBadge.title = "This list stays in this browser";
+    return;
+  }
   padBadge.title =
     status.kind === "synced"
       ? `Synced ${new Date(status.at).toLocaleTimeString()}`
