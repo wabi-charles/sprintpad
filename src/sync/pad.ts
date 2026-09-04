@@ -92,7 +92,12 @@ export function createPadSync(hooks: PadSyncHooks) {
     setStatus({ kind: "synced", at: updatedAt });
   }
 
-  async function sync(): Promise<void> {
+  /**
+   * `quiet` is for the poll that runs on a timer: it still reports whatever it
+   * finds, but it does not announce itself first. Otherwise the badge would
+   * blink through "Syncing…" every few seconds on a pad nobody is touching.
+   */
+  async function sync(options?: { quiet?: boolean }): Promise<void> {
     if (padId === null || !credentials) return;
     if (running) {
       again = true;
@@ -100,7 +105,7 @@ export function createPadSync(hooks: PadSyncHooks) {
     }
 
     running = true;
-    setStatus({ kind: "working" });
+    if (!options?.quiet) setStatus({ kind: "working" });
     try {
       do {
         again = false;

@@ -237,13 +237,21 @@ export function createEditor(hooks: EditorHooks) {
     },
 
     /** Replaces the document as one undoable edit. */
-    setDoc(doc: string): void {
+    /**
+     * `keepCursor` is for a document that arrived rather than one the user
+     * asked for: a pull from another device must not yank the caret to the top
+     * or steal focus out of whatever is open. There is no honest mapping
+     * between two different texts, so the offset is simply clamped -- close to
+     * where you were, which is all that can be promised.
+     */
+    setDoc(doc: string, options?: { keepCursor?: boolean }): void {
+      const head = Math.min(view.state.selection.main.head, doc.length);
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: doc },
-        selection: { anchor: 0 },
+        selection: { anchor: options?.keepCursor ? head : 0 },
         userEvent: "input",
       });
-      view.focus();
+      if (!options?.keepCursor) view.focus();
     },
 
     setDark(dark: boolean): void {

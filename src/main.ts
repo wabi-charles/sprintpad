@@ -164,7 +164,7 @@ const padSync = createPadSync({
   getDoc: () => editor.getDoc(),
   // Arriving from another device is an edit like any other: undoable, and the
   // text it replaces becomes a version of its own.
-  applyRemote: (doc) => restoreVersion(doc),
+  applyRemote: (doc) => restoreVersion(doc, { keepCursor: true }),
   onStatus: (status) => {
     unlockPanel.refresh();
     padsPanel.refresh();
@@ -241,13 +241,13 @@ const sessions = createSessionController({
  * text becomes a snapshot in its own right -- restoring the wrong version is
  * recoverable too.
  */
-function restoreVersion(doc: string): void {
+function restoreVersion(doc: string, options?: { keepCursor?: boolean }): void {
   const next = recordSnapshot(snapshots, editor.getDoc(), Date.now(), { minGapMs: 0 });
   if (next !== snapshots) {
     snapshots = next;
     store.saveSnapshots(snapshots);
   }
-  editor.setDoc(doc);
+  editor.setDoc(doc, options);
 }
 
 function handleDocChange(doc: string): void {
@@ -423,6 +423,27 @@ document.addEventListener("visibilitychange", () => {
     render();
     if (padSync.isUnlocked) void padSync.sync();
   }
+});
+
+/*
+ * Another device's edit has to be fetched -- the server pushes nothing -- so a
+ * pad left open on a desk would otherwise show yesterday's list until it was
+ * reloaded. Only while the tab is visible: a hidden one catches up the moment
+ * it comes back, which the handler above already does.
+ *
+ * A poll can only ever pull when this device has not touched the document
+ * since its last sync; the moment it has, reconcile calls it a push or a
+ * conflict. So this cannot overwrite anything typed here.
+ */
+const SYNC_POLL_MS = 20_000;
+setInterval(() => {
+  if (document.hidden || !padSync.isUnlocked) return;
+  void padSync.sync({ quiet: true });
+}, SYNC_POLL_MS);
+
+// A device that has just come back online is the one most likely to be behind.
+window.addEventListener("online", () => {
+  if (padSync.isUnlocked) void padSync.sync();
 });
 
 setInterval(render, TICK_MS);

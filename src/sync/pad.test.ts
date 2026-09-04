@@ -67,6 +67,7 @@ function harness(initialDoc: string, padId: string | null = "happy") {
   let doc = initialDoc;
   const store = createStore(memoryStorage(), padId ?? "");
   const applied: string[] = [];
+  const statuses: string[] = [];
   const sync = createPadSync({
     padId,
     store,
@@ -75,9 +76,16 @@ function harness(initialDoc: string, padId: string | null = "happy") {
       doc = next;
       applied.push(next);
     },
-    onStatus: () => {},
+    onStatus: (status) => void statuses.push(status.kind),
   });
-  return { sync, store, applied, get doc() { return doc; }, setDoc: (v: string) => (doc = v) };
+  return {
+    sync,
+    store,
+    applied,
+    statuses,
+    get doc() { return doc; },
+    setDoc: (v: string) => (doc = v),
+  };
 }
 
 describe("the root", () => {
@@ -271,5 +279,69 @@ describe("a connection that fails", () => {
     expect(store.loadCredentials()).toBeNull();
     await sync.unlockWith("pw");
     expect(store.loadCredentials()).not.toBeNull();
+  });
+});
+
+/**
+ * The case the whole feature exists for, and the one that had no coverage:
+ * two devices on one pad, where the second only learns of the first's edit
+ * because something asked. Nothing is pushed from the server.
+ */
+describe("a pad open on two devices", () => {
+  const PASSWORD = "correct horse battery staple";
+
+  async function twoDevices(doc: string) {
+    const phone = harness(doc);
+    await phone.sync.unlockWith(PASSWORD);
+    const desk = harness(doc);
+    await desk.sync.unlockWith(PASSWORD);
+    return { phone, desk };
+  }
+
+  it("picks up the other device's edit on a poll", async () => {
+    const { phone, desk } = await twoDevices("shared start");
+
+    phone.setDoc("written on the phone");
+    await phone.sync.sync();
+
+    expect(desk.doc).toBe("shared start");
+    await desk.sync.sync({ quiet: true });
+    expect(desk.doc).toBe("written on the phone");
+    expect(desk.sync.status).toMatchObject({ kind: "synced" });
+  });
+
+  it("keeps polling in step over several rounds", async () => {
+    const { phone, desk } = await twoDevices("one");
+
+    for (const text of ["two", "three", "four"]) {
+      phone.setDoc(text);
+      await phone.sync.sync();
+      await desk.sync.sync({ quiet: true });
+      expect(desk.doc).toBe(text);
+    }
+  });
+
+  it("never overwrites what this device has typed", async () => {
+    const { phone, desk } = await twoDevices("shared start");
+
+    phone.setDoc("phone wins?");
+    await phone.sync.sync();
+    desk.setDoc("no, the desk was mid-sentence");
+
+    await desk.sync.sync({ quiet: true });
+    expect(desk.doc).toBe("no, the desk was mid-sentence");
+    expect(desk.sync.status).toEqual({ kind: "conflict" });
+  });
+
+  it("stays quiet on the badge when polling", async () => {
+    const { desk } = await twoDevices("shared start");
+
+    desk.statuses.length = 0;
+    await desk.sync.sync({ quiet: true });
+    expect(desk.statuses).not.toContain("working");
+
+    desk.statuses.length = 0;
+    await desk.sync.sync();
+    expect(desk.statuses).toContain("working");
   });
 });
