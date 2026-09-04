@@ -446,11 +446,6 @@ function buildCommands(): PaletteCommand[] {
       label: "Restore an earlier version…",
       run: () => versions.open(() => editor.focus()),
     },
-    {
-      id: "pads",
-      label: activePadId === null ? "Pads — sync across devices…" : `Pads — on “${activePadId}”…`,
-      run: () => padsPanel.open(() => editor.focus()),
-    },
   ];
 }
 

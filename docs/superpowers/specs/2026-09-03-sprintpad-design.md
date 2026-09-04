@@ -963,3 +963,13 @@ visible way into the pad manager, which previously required knowing ⌘K.
 
 The pad list calls the same thing "Local" now rather than "This browser", since
 two names for one thing is its own small confusion.
+
+
+---
+
+## Addendum 32: the pads command goes
+
+Once the badge was always on screen and clickable, the palette entry was a
+second door to the same room. The palette's rule has held since addendum 9 --
+it holds only what has no other route -- and this is the rule doing its job
+rather than an exception to it. Five entries again.
