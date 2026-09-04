@@ -1,3 +1,5 @@
+import { trapFocus } from "./focusTrap";
+
 /**
  * ⌘K. A filterable list of everything you can do without the mouse, which is
  * also where the less-common actions live instead of accumulating chrome.
@@ -49,6 +51,7 @@ export function createPalette(parent: HTMLElement, getCommands: () => PaletteCom
   let matches: PaletteCommand[] = [];
   let active = 0;
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
 
   function paint(): void {
     const query = input.value.trim().toLowerCase();
@@ -93,6 +96,8 @@ export function createPalette(parent: HTMLElement, getCommands: () => PaletteCom
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
@@ -139,6 +144,7 @@ export function createPalette(parent: HTMLElement, getCommands: () => PaletteCom
     open(onClose: () => void): void {
       restoreFocus = onClose;
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       input.value = "";
       active = 0;
       paint();

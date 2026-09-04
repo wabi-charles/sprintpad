@@ -1,3 +1,5 @@
+import { trapFocus } from "./focusTrap";
+
 /**
  * The keymap, written down. Sprintpad is keyboard-first, so the keys are the
  * product -- they should not have to be discovered by accident.
@@ -90,9 +92,12 @@ export function createShortcutsView(parent: HTMLElement) {
   });
 
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
@@ -106,6 +111,7 @@ export function createShortcutsView(parent: HTMLElement) {
     open(onClose: () => void): void {
       restoreFocus = onClose;
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       box.focus();
     },
 

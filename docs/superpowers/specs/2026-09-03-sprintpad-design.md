@@ -973,3 +973,39 @@ Once the badge was always on screen and clickable, the palette entry was a
 second door to the same room. The palette's rule has held since addendum 9 --
 it holds only what has no other route -- and this is the rule doing its job
 rather than an exception to it. Five entries again.
+
+
+---
+
+## Addendum 33: mobile, a password floor, and a focus trap
+
+**The zooming had one cause.** iOS zooms the page whenever a focused field is
+under 16px, and every field here was 13–15px — including the editor. So tapping
+anywhere to type threw the layout about. Raised to 16px under `pointer: coarse`
+only; the desktop measure is unchanged. The editor's rule is doubled up
+(`.cm-editor.cm-editor`) because CodeMirror's generated theme matches at one
+class and a single class would tie and lose — the same specificity trap as the
+gutter and the header spacing before it.
+
+**Indent and reorder had no touch route at all.** Tab and ⌘↑/⌘↓ cannot be
+pressed on a phone, and both are load-bearing: indentation is the outline,
+position is the priority. Four buttons appear under the focus panel on coarse
+pointers — outdent, indent, up, down. It is chrome, which this product avoids;
+the justification is that on a phone there is no keyboard-first to preserve,
+and the desktop never sees it.
+
+**A password floor.** Twelve characters minimum for a *new* pad, with the
+obvious entries and single-character padding refused. Stricter than a login
+would need, because there is no reset and no rate limit: the pad is a file
+anyone can fetch, so a weak password is attacked offline at whatever speed the
+attacker's hardware allows. Length defeats that; punctuation rules do not, so
+length is what is asked for. Judged only when creating — an existing pad has
+the password it has, and refusing to let someone type it would lock them out of
+their own list.
+
+**Tab no longer escapes an open dialog.** It wrapped out into the document
+behind, which here means typing into a list you cannot see.
+
+**The favicon** was near-black, from neither of the site's two colours. It is
+the accent on the paper ground now, which reads as Sprintpad at any size and
+holds against a light or dark tab strip.

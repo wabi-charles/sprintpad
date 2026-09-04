@@ -1,3 +1,4 @@
+import { trapFocus } from "./focusTrap";
 import type { Settings } from "../data/storage";
 
 /**
@@ -57,6 +58,7 @@ export function createSettingsView(
   });
 
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
 
   function minutesRow(label: string, commit: (seconds: number) => void) {
     const root = document.createElement("label");
@@ -99,6 +101,8 @@ export function createSettingsView(
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
@@ -113,6 +117,7 @@ export function createSettingsView(
       restoreFocus = onClose;
       paint();
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       focusRow.input.focus();
       focusRow.input.select();
     },

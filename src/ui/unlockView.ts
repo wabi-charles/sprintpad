@@ -1,3 +1,4 @@
+import { trapFocus } from "./focusTrap";
 import type { PadSync } from "../sync/pad";
 
 /**
@@ -20,9 +21,12 @@ export function createUnlockView(parent: HTMLElement, sync: PadSync, onOpened: (
   });
 
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
@@ -105,6 +109,7 @@ export function createUnlockView(parent: HTMLElement, sync: PadSync, onOpened: (
       restoreFocus = onClose;
       paint();
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       box.querySelector("input")?.focus();
     },
 

@@ -6,8 +6,11 @@
 import { deflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
 
-const BG = [28, 26, 23]; // --sp-fg, the ink of the light theme
-const MARK = [240, 160, 75]; // --sp-accent in dark, legible on that ground
+// The site's own two colours: the accent it reserves for focus, on the paper
+// the page is made of. Amber reads as Sprintpad at any size, and holds up
+// against a light or a dark browser tab strip -- which near-black did not.
+const BG = [180, 83, 9]; // --sp-accent
+const MARK = [251, 250, 248]; // --sp-bg
 
 function crc32(buf) {
   let c = ~0;

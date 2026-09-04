@@ -27,6 +27,7 @@ import { padIdFromPath } from "./sync/padId";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
 import { createPadsView } from "./ui/padsView";
+import { createTouchBar } from "./ui/touchBar";
 import { createUnlockView } from "./ui/unlockView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
@@ -119,7 +120,8 @@ header.append(brand, padBadge, barActions);
 const focusHost = document.createElement("div");
 const workpad = document.createElement("main");
 workpad.className = "sp-workpad";
-app.append(header, focusHost, workpad);
+const touchHost = document.createElement("div");
+app.append(header, focusHost, touchHost, workpad);
 
 const initialDoc = store.loadDoc() ?? STARTER_DOC;
 /** The last text written to storage; the candidate for the next snapshot. */
@@ -153,6 +155,7 @@ const editor = createEditor({
 });
 
 const theme = createTheme(settings.theme, (dark) => editor.setDark(dark));
+createTouchBar(touchHost, () => editor);
 
 const panel = createFocusPanel(focusHost, {
   start: () => startFocus(focusTargetsIn(editor.view.state)),

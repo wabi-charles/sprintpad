@@ -1,7 +1,9 @@
+import { trapFocus } from "./focusTrap";
 import { forgetPadLocally, knownPadIds, type StorageLike } from "../data/storage";
 import { deletePadEverywhere, openOrCreatePad, padExists } from "../sync/pads";
 import type { PadSync, SyncStatus } from "../sync/pad";
 import { describePadIdProblem, normalizePadId, padIdProblem, padUrl } from "../sync/padId";
+import { describePasswordProblem, passwordProblem } from "../sync/password";
 
 /**
  * The pads on this device: open one, make one, or remove one.
@@ -32,11 +34,14 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
   });
 
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
   /** The pad whose deletion is one more click away. */
   let confirming: string | null = null;
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     confirming = null;
     const restore = restoreFocus;
     restoreFocus = null;
@@ -177,7 +182,17 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         const padId = normalizePadId(pad.name.value);
         const shape = padIdProblem(padId);
         if (shape) return note(describePadIdProblem(shape));
-        if (pad.password.value === "") return note("Enter a password. It cannot be reset.");
+        /*
+         * Only judged when making a pad. An existing one already has whatever
+         * password it has, and refusing to let someone type it would lock them
+         * out of their own list.
+         */
+        if (willCreate !== false) {
+          const weak = passwordProblem(pad.password.value);
+          if (weak) return note(describePasswordProblem(weak));
+        } else if (pad.password.value === "") {
+          return note("Enter this pad's password.");
+        }
 
         submit.disabled = true;
         note("Working…");
@@ -203,9 +218,13 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
      * otherwise a mistyped name quietly makes a pad instead of opening one.
      */
     let checking: ReturnType<typeof setTimeout> | null = null;
+    /** True, false, or null while we do not yet know. */
+    let willCreate: boolean | null = null;
+
     pad.name.addEventListener("input", () => {
       if (checking) clearTimeout(checking);
       submit.textContent = "Open or create pad";
+      willCreate = null;
       note("");
 
       const padId = normalizePadId(pad.name.value);
@@ -216,6 +235,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         // The field may have moved on while we asked.
         if (normalizePadId(pad.name.value) !== padId) return;
         if (exists === null) return;
+        willCreate = !exists;
         submit.textContent = exists ? "Open pad" : "Create pad";
         note(
           exists
@@ -291,6 +311,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       restoreFocus = onClose;
       paint();
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       box.querySelector("input")?.focus();
     },
 

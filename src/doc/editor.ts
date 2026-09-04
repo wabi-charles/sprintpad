@@ -211,6 +211,27 @@ export function createEditor(hooks: EditorHooks) {
       view.focus();
     },
 
+    /** Structural edits, for callers without a keyboard. */
+    indent(): void {
+      indentTasks(view);
+      view.focus();
+    },
+
+    outdent(): void {
+      outdentTasks(view);
+      view.focus();
+    },
+
+    moveUp(): void {
+      moveLineUp(view);
+      view.focus();
+    },
+
+    moveDown(): void {
+      moveLineDown(view);
+      view.focus();
+    },
+
     getDoc(): string {
       return view.state.doc.toString();
     },

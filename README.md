@@ -211,6 +211,9 @@ logic: there is nothing for it to check.
 Two consequences, neither of which can be softened:
 
 - **A forgotten password cannot be reset.** Nobody can read the pad without it.
+  New pads therefore require at least 12 characters — a pad is a file anyone
+  can fetch, so a weak password can be attacked offline as fast as the attacker
+  likes, and length is what defeats that.
 - Anyone with both the pad name and the password can read your list.
 
 A memorable name is a guessable one, so writes carry a token derived from the

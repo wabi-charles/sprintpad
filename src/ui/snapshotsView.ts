@@ -1,3 +1,4 @@
+import { trapFocus } from "./focusTrap";
 import { describeSnapshot, formatAge, type Snapshot } from "../data/snapshots";
 
 /**
@@ -24,9 +25,12 @@ export function createSnapshotsView(
   });
 
   let restoreFocus: (() => void) | null = null;
+  let releaseTrap: (() => void) | null = null;
 
   function close(): void {
     overlay.hidden = true;
+    releaseTrap?.();
+    releaseTrap = null;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
@@ -82,6 +86,7 @@ export function createSnapshotsView(
       restoreFocus = onClose;
       paint();
       overlay.hidden = false;
+      releaseTrap = trapFocus(box);
       box.focus();
     },
 

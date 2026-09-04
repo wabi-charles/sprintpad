@@ -67,7 +67,7 @@ body {
 
 #app {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 /* ------------------------------------------------------------- top bar --- */
@@ -1047,4 +1047,59 @@ body {
 .sp-btn--danger:hover {
   background: #b3261e;
   color: #fff;
+}
+
+/*
+ * Safari zooms the page whenever a focused field is under 16px, so tapping the
+ * document or any field threw the layout about. Raised on touch only; the
+ * desktop measure is unchanged.
+ *
+ * The editor's size is doubled up on purpose: CodeMirror's generated theme
+ * matches at one class, and a single `.cm-editor` here would tie and lose.
+ */
+@media (pointer: coarse) {
+  .cm-editor.cm-editor {
+    font-size: 16px;
+  }
+
+  .sp-palette__input,
+  .sp-settings__input,
+  .sp-sync__input,
+  .sp-pads__input {
+    font-size: 16px;
+  }
+}
+
+/* ---------------------------------------------------------- touch bar --- */
+
+/* Keyboard users have Tab and ⌘↑/⌘↓; this exists only where they do not. */
+.sp-touchbar {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .sp-touchbar {
+    display: flex;
+    gap: 6px;
+    width: min(var(--sp-measure), 100% - 32px);
+    margin: 14px auto 0;
+  }
+
+  .sp-touchbar__button {
+    flex: 1;
+    min-height: 44px;
+    border: 1px solid var(--sp-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sp-fg-dim);
+    font-family: inherit;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .sp-touchbar__button:active {
+    background: var(--sp-border);
+    color: var(--sp-fg);
+  }
 }
