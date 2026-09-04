@@ -7,7 +7,7 @@ import {
   type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
-import { anchoredLine, focusAnchorField } from "./focusField";
+import { anchoredLines, focusAnchorsField } from "./focusField";
 import { parseLine } from "./grammar";
 import { pendingTaskField, pendingTaskLine } from "./pendingTask";
 
@@ -62,7 +62,7 @@ const hideMarker = Decoration.replace({});
 
 function build(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
-  const focused = anchoredLine(view.state);
+  const focused = new Set(anchoredLines(view.state).map((line) => line.from));
   const pending = pendingTaskLine(view.state);
 
   // Only a real cursor points at a task; a selection speaks for itself.
@@ -91,7 +91,7 @@ function build(view: EditorView): DecorationSet {
       if (atCursor === line.from) {
         builder.add(line.from, line.from, cursorLine);
       }
-      if (focused && focused.from === line.from) {
+      if (focused.has(line.from)) {
         builder.add(line.from, line.from, focusedLine);
       }
       if (waiting) {
@@ -136,8 +136,8 @@ export function sprintpadDecorations(onToggle: (view: EditorView, pos: number) =
 
       update(update: ViewUpdate) {
         const focusChanged =
-          update.startState.field(focusAnchorField, false) !==
-          update.state.field(focusAnchorField, false);
+          update.startState.field(focusAnchorsField, false) !==
+          update.state.field(focusAnchorsField, false);
         const pendingChanged =
           update.startState.field(pendingTaskField, false) !==
           update.state.field(pendingTaskField, false);

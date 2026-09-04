@@ -22,10 +22,10 @@ export interface Settings {
 
 export interface PersistedSession {
   id: string;
-  /** Snapshot of the task text, used if the line is later deleted. */
-  taskText: string;
-  /** Document position of the task line, mapped through edits. */
-  anchor: number | null;
+  /** Titles captured at session start, used if the lines are later deleted. */
+  tasks: string[];
+  /** Document positions of those task lines, mapped through edits. */
+  anchors: number[];
   phase: SessionPhase;
   startedAt: number;
   timer: TimerState;
@@ -160,15 +160,28 @@ export function createStore(backend: StorageLike) {
         stored.phase === "break";
       if (
         typeof stored.id !== "string" ||
-        typeof stored.taskText !== "string" ||
         typeof stored.startedAt !== "number" ||
         !validPhase ||
-        !isTimerState(stored.timer) ||
-        !(stored.anchor === null || typeof stored.anchor === "number")
+        !isTimerState(stored.timer)
       ) {
         return null;
       }
-      return stored as unknown as PersistedSession;
+
+      // Sessions used to hold a single taskText/anchor; carry those forward.
+      const tasks = Array.isArray(stored.tasks)
+        ? stored.tasks.filter((task): task is string => typeof task === "string")
+        : typeof stored.taskText === "string"
+          ? [stored.taskText]
+          : [];
+      if (tasks.length === 0) return null;
+
+      const anchors = Array.isArray(stored.anchors)
+        ? stored.anchors.filter((a): a is number => typeof a === "number")
+        : typeof stored.anchor === "number"
+          ? [stored.anchor]
+          : [];
+
+      return { ...stored, tasks, anchors } as unknown as PersistedSession;
     },
 
     loadSnapshots(): Snapshot[] {

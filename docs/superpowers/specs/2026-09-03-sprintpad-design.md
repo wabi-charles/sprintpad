@@ -579,3 +579,38 @@ Not verified: service worker *registration*. The preview pane blocks it
 ("unknown error occurred when fetching the script") though `sw.js` serves as
 `text/javascript` and the manifest, icons and precache list are all correct.
 Worth confirming in a real browser.
+
+
+---
+
+## Addendum 17: one session over several tasks
+
+"Focus on multiple at a time" could mean several concurrent timers, which
+would cut against the product's own thesis -- §1 is "pick one thing" and the
+tagline is "Focus on one thing". Asked, and the answer was the other reading:
+**one** session that covers a group of tasks. Still one timer and one stretch
+of work; the work just spans a few lines.
+
+`⌘Enter` now starts a session on every task line the selection touches, or the
+cursor's line when nothing is selected. Headers, blanks and empty tasks are
+skipped, so selecting a whole section focuses its work and not its heading.
+
+The model change runs deep: a session holds `tasks: string[]` and
+`anchors: number[]`, and `focusAnchorsField` maps a set of positions rather
+than one. `resolveFocusedLines` re-derives the *whole* group whenever any
+anchor is lost, rather than patching the missing ones -- otherwise titles and
+lines drift out of correspondence, and a group where one member was recovered
+by title and another by position is hard to reason about.
+
+Two things fell out of building it:
+
+**Starting focus now collapses the selection.** Leaving a three-line selection
+standing meant the next character typed would replace all three tasks. The
+cursor lands at the end of the last task in the group.
+
+**A session ends when every task in it is complete**, not when the first one
+is. `handleDocChange` checks all of them.
+
+Old single-task sessions in storage are migrated on load: `taskText`/`anchor`
+become one-element arrays. A session that resolves to no tasks at all is
+discarded rather than restored.

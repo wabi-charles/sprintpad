@@ -179,9 +179,25 @@ export function changeIndent(state: EditorState, delta: number): TransactionSpec
   return caret === null ? { changes } : { changes, selection: { anchor: caret } };
 }
 
-/** The task the cursor is sitting on, or null if it is not on one. */
-export function focusTargetAt(state: EditorState): TaskTarget | null {
-  return targetOf(state.doc.lineAt(state.selection.main.head));
+/**
+ * The tasks a focus session would cover: every task line the selection
+ * touches, or just the cursor's line when nothing is selected. Headers, blanks
+ * and empty tasks are skipped, so selecting a whole section focuses its work
+ * and not its heading.
+ */
+export function focusTargetsIn(state: EditorState): TaskTarget[] {
+  const targets: TaskTarget[] = [];
+  const seen = new Set<number>();
+
+  for (const line of touchedLines(state)) {
+    if (seen.has(line.from)) continue;
+    const target = targetOf(line);
+    if (!target) continue;
+    seen.add(line.from);
+    targets.push(target);
+  }
+
+  return targets;
 }
 
 /** Marks a specific line complete -- used by the focus panel's DONE button. */

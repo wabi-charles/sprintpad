@@ -2,27 +2,40 @@ import { MapMode, StateEffect, StateField, type EditorState, type Line } from "@
 import { parseLine } from "./grammar";
 
 /**
- * A running focus session has to stay attached to its task while the list is
+ * A running focus session has to stay attached to its tasks while the list is
  * rewritten and reordered underneath it. Rather than inventing task ids, we
- * lean on CodeMirror: a position mapped through every transaction.
+ * lean on CodeMirror: positions mapped through every transaction.
  *
- * The anchor sits one character into the task text: past the marker span, so
+ * Each anchor sits one character into a task's text: past the marker span, so
  * completing or re-indenting the task leaves it alone, but strictly inside the
  * line, so anything that deletes the line -- including CodeMirror rewriting it
  * to move a neighbour past -- makes TrackDel yield null instead of silently
  * sliding the anchor onto whichever task takes its place.
  */
 
-export const setFocusAnchor = StateEffect.define<number | null>();
+export const setFocusAnchors = StateEffect.define<number[]>();
 
-export const focusAnchorField = StateField.define<number | null>({
-  create: () => null,
+export const focusAnchorsField = StateField.define<number[]>({
+  create: () => [],
+
   update(value, tr) {
     for (const effect of tr.effects) {
-      if (effect.is(setFocusAnchor)) return effect.value;
+      if (effect.is(setFocusAnchors)) return effect.value;
     }
-    if (value === null || !tr.docChanged) return value;
-    return tr.changes.mapPos(value, 1, MapMode.TrackDel);
+    if (value.length === 0 || !tr.docChanged) return value;
+
+    const mapped: number[] = [];
+    let changed = false;
+    for (const pos of value) {
+      const next = tr.changes.mapPos(pos, 1, MapMode.TrackDel);
+      if (next === null) {
+        changed = true;
+        continue;
+      }
+      if (next !== pos) changed = true;
+      mapped.push(next);
+    }
+    return changed ? mapped : value;
   },
 });
 
@@ -32,28 +45,31 @@ export function anchorForLine(line: Line): number {
   return line.from + parsed.markerTo + (parsed.text.length > 0 ? 1 : 0);
 }
 
-/** The anchored line, if it is still a task. */
-export function anchoredLine(state: EditorState): Line | null {
-  const anchor = state.field(focusAnchorField, false) ?? null;
-  if (anchor === null || anchor > state.doc.length) return null;
-  const line = state.doc.lineAt(anchor);
-  return parseLine(line.text).kind === "task" ? line : null;
+/** The anchored lines that are still tasks, in document order. */
+export function anchoredLines(state: EditorState): Line[] {
+  const anchors = state.field(focusAnchorsField, false) ?? [];
+  const lines: Line[] = [];
+  const seen = new Set<number>();
+
+  for (const anchor of anchors) {
+    if (anchor > state.doc.length) continue;
+    const line = state.doc.lineAt(anchor);
+    if (seen.has(line.from)) continue;
+    if (parseLine(line.text).kind !== "task") continue;
+    seen.add(line.from);
+    lines.push(line);
+  }
+
+  return lines.sort((a, b) => a.from - b.from);
 }
 
-/**
- * Where the focused task lives now. Falls back to matching the title captured
- * at session start. The fallback is not an edge case: moving a *neighbouring*
- * line past the focused one makes CodeMirror delete and reinsert the focused
- * line's text, which legitimately drops the anchor.
- */
-export function resolveFocusedLine(state: EditorState, snapshotText: string): Line | null {
-  const anchored = anchoredLine(state);
-  if (anchored) return anchored;
-
-  const wanted = snapshotText.trim();
+function findTask(state: EditorState, text: string, taken: Set<number>): Line | null {
+  const wanted = text.trim();
   if (wanted === "") return null;
+
   for (let n = 1; n <= state.doc.lines; n++) {
     const line = state.doc.line(n);
+    if (taken.has(line.from)) continue;
     const parsed = parseLine(line.text);
     if (parsed.kind === "task" && parsed.text.trim() === wanted) return line;
   }
@@ -61,12 +77,35 @@ export function resolveFocusedLine(state: EditorState, snapshotText: string): Li
 }
 
 /**
- * The anchor to re-attach after the fallback recovered a task, or null when
- * nothing needs to change. Callers dispatch this so that once focus is found
- * again by title, subsequent edits are tracked by position as usual.
+ * Where the focused tasks live now. Falls back to the titles captured at
+ * session start. The fallback is not an edge case: moving a *neighbouring*
+ * line past a focused one makes CodeMirror delete and reinsert its text, which
+ * legitimately drops the anchor. Losing any anchor re-derives the whole group,
+ * which keeps titles and lines from drifting out of correspondence.
  */
-export function reanchorTo(state: EditorState, snapshotText: string): number | null {
-  if (anchoredLine(state)) return null;
-  const line = resolveFocusedLine(state, snapshotText);
-  return line ? anchorForLine(line) : null;
+export function resolveFocusedLines(state: EditorState, titles: readonly string[]): Line[] {
+  const anchored = anchoredLines(state);
+  if (anchored.length === titles.length) return anchored;
+
+  const lines: Line[] = [];
+  const taken = new Set<number>();
+  for (const title of titles) {
+    const line = findTask(state, title, taken);
+    if (!line) continue;
+    taken.add(line.from);
+    lines.push(line);
+  }
+  return lines.sort((a, b) => a.from - b.from);
+}
+
+/**
+ * The anchors to re-attach after the fallback recovered the group, or null
+ * when nothing needs to change. Callers dispatch this so that once focus is
+ * found again by title, subsequent edits are tracked by position as usual.
+ */
+export function reanchorTo(state: EditorState, titles: readonly string[]): number[] | null {
+  if (anchoredLines(state).length === titles.length) return null;
+  const lines = resolveFocusedLines(state, titles);
+  if (lines.length === 0) return null;
+  return lines.map(anchorForLine);
 }

@@ -4,13 +4,14 @@
  * mid-session and the clock never re-creates itself.
  */
 
+/** `extra` is how many further tasks the session covers beyond the first. */
 export type PanelView =
   | { kind: "idle" }
-  | { kind: "running"; task: string; clock: string; countUp: boolean }
-  | { kind: "paused"; task: string; clock: string; countUp: boolean }
-  | { kind: "expired"; task: string; focused: string }
-  | { kind: "break"; task: string; clock: string; paused: boolean }
-  | { kind: "finished"; task: string; focused: string };
+  | { kind: "running"; task: string; extra: number; clock: string; countUp: boolean }
+  | { kind: "paused"; task: string; extra: number; clock: string; countUp: boolean }
+  | { kind: "expired"; task: string; extra: number; focused: string }
+  | { kind: "break"; task: string; extra: number; clock: string; paused: boolean }
+  | { kind: "finished"; task: string; extra: number; focused: string };
 
 export interface PanelActions {
   togglePause(): void;
@@ -70,13 +71,18 @@ export function createFocusPanel(parent: HTMLElement, actions: PanelActions) {
   const task = document.createElement("h1");
   task.className = "sp-focus__task";
 
+  // A session can cover several tasks; naming the first and counting the rest
+  // keeps the panel about the work rather than about a list.
+  const alsoCount = document.createElement("p");
+  alsoCount.className = "sp-focus__also";
+
   const clock = document.createElement("div");
   clock.className = "sp-focus__clock";
 
   const row = document.createElement("div");
   row.className = "sp-focus__actions";
 
-  root.append(label, task, clock, row);
+  root.append(label, task, alsoCount, clock, row);
   parent.append(root);
 
   let lastSignature = "";
@@ -118,6 +124,9 @@ export function createFocusPanel(parent: HTMLElement, actions: PanelActions) {
 
       task.textContent =
         view.kind === "idle" ? "Select a task and press ⌘Enter" : view.task;
+
+      const extra = view.kind === "idle" ? 0 : view.extra;
+      alsoCount.textContent = extra > 0 ? `and ${extra} more task${extra === 1 ? "" : "s"}` : "";
 
       if (isTimed) {
         clock.textContent = view.clock;

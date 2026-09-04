@@ -16,7 +16,7 @@ const T0 = 1_700_000_000_000;
 const sec = (n: number) => T0 + n * 1000;
 
 const start = (durationSec = 3000) =>
-  beginSession({ taskText: "Claude data setup", anchor: 12, mode: "countdown", durationSec, now: T0 });
+  beginSession({ tasks: ["Claude data setup"], anchors: [12], mode: "countdown", durationSec, now: T0 });
 
 describe("beginSession", () => {
   it("starts running with the timer already going", () => {

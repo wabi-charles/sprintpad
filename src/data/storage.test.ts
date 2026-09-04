@@ -117,8 +117,8 @@ describe("snapshots", () => {
 describe("session", () => {
   const session = {
     id: "s1",
-    taskText: "Claude data setup",
-    anchor: 12,
+    tasks: ["Claude data setup"],
+    anchors: [12],
     phase: "running" as const,
     startedAt: 1700,
     timer: {
@@ -147,6 +147,33 @@ describe("session", () => {
   it("discards a corrupt session rather than resuming a broken timer", () => {
     expect(createStore(fakeBackend({ "sprintpad.session": '{"phase":"running"}' })).loadSession())
       .toBeNull();
+  });
+
+  it("carries a single-task session from the old shape forward", () => {
+    const legacy = JSON.stringify({
+      id: "s1",
+      taskText: "Claude data setup",
+      anchor: 12,
+      phase: "running",
+      startedAt: 1700,
+      timer: { mode: "countdown", durationSec: 3000, startedAt: 1700, accumulatedSec: 0, running: true },
+    });
+    expect(createStore(fakeBackend({ "sprintpad.session": legacy })).loadSession()).toMatchObject({
+      tasks: ["Claude data setup"],
+      anchors: [12],
+    });
+  });
+
+  it("discards a session with no tasks at all", () => {
+    const empty = JSON.stringify({
+      id: "s1",
+      tasks: [],
+      anchors: [],
+      phase: "running",
+      startedAt: 1700,
+      timer: { mode: "countdown", durationSec: 3000, startedAt: 1700, accumulatedSec: 0, running: true },
+    });
+    expect(createStore(fakeBackend({ "sprintpad.session": empty })).loadSession()).toBeNull();
   });
 });
 

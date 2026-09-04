@@ -20,8 +20,8 @@ import {
 export type FocusSession = PersistedSession & { bankedSec: number };
 
 export interface BeginOptions {
-  taskText: string;
-  anchor: number | null;
+  tasks: string[];
+  anchors: number[];
   mode: TimerMode;
   durationSec: number;
   now: number;
@@ -39,16 +39,16 @@ export function isFocusPhase(phase: SessionPhase): boolean {
 }
 
 export function beginSession({
-  taskText,
-  anchor,
+  tasks,
+  anchors,
   mode,
   durationSec,
   now,
 }: BeginOptions): FocusSession {
   return {
     id: newId(),
-    taskText,
-    anchor,
+    tasks,
+    anchors,
     phase: "running",
     startedAt: now,
     bankedSec: 0,

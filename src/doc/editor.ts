@@ -4,13 +4,13 @@ import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, drawSelection, keymap, placeholder } from "@codemirror/view";
 import { deleteLineHead, indentTasks, insertTaskLine, outdentTasks, toggleTaskDone } from "./commands";
 import { sprintpadDecorations } from "./decorations";
-import { completeLineAt, focusTargetAt, nextOpenTaskAfter, toggleDone, type TaskTarget } from "./edits";
+import { completeLineAt, focusTargetsIn, nextOpenTaskAfter, toggleDone, type TaskTarget } from "./edits";
 import {
   anchorForLine,
-  focusAnchorField,
+  focusAnchorsField,
   reanchorTo,
-  resolveFocusedLine,
-  setFocusAnchor,
+  resolveFocusedLines,
+  setFocusAnchors,
 } from "./focusField";
 import { INDENT_UNIT, parseLine } from "./grammar";
 import { markerInputAction, setSwallowedMarker, swallowedMarkerField } from "./markerInput";
@@ -21,11 +21,11 @@ export interface EditorHooks {
   parent: HTMLElement;
   doc: string;
   onDocChange(doc: string): void;
-  /** Cmd-Enter on a task line. */
-  onStartFocus(target: TaskTarget): void;
+  /** Cmd-Enter: the task at the cursor, or every task the selection covers. */
+  onStartFocus(targets: TaskTarget[]): void;
   onCommandPalette(): void;
-  /** The title to fall back to when the focus anchor needs re-attaching. */
-  focusSnapshot(): string | null;
+  /** The titles to fall back to when the focus anchors need re-attaching. */
+  focusSnapshot(): readonly string[] | null;
 }
 
 const themeCompartment = new Compartment();
@@ -69,9 +69,9 @@ const baseTheme = EditorView.theme({
 
 export function createEditor(hooks: EditorHooks) {
   const startFocus = (view: EditorView): boolean => {
-    const target = focusTargetAt(view.state);
-    if (!target) return false;
-    hooks.onStartFocus(target);
+    const targets = focusTargetsIn(view.state);
+    if (targets.length === 0) return false;
+    hooks.onStartFocus(targets);
     return true;
   };
 
@@ -166,7 +166,7 @@ export function createEditor(hooks: EditorHooks) {
          */
         drawSelection(),
         search({ top: true }),
-        focusAnchorField,
+        focusAnchorsField,
         pendingTaskField,
         swallowedMarkerField,
         markerInput,
@@ -187,10 +187,10 @@ export function createEditor(hooks: EditorHooks) {
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
           hooks.onDocChange(update.state.doc.toString());
-          const snapshot = hooks.focusSnapshot();
-          if (snapshot === null) return;
-          const anchor = reanchorTo(update.state, snapshot);
-          if (anchor !== null) update.view.dispatch({ effects: setFocusAnchor.of(anchor) });
+          const titles = hooks.focusSnapshot();
+          if (titles === null) return;
+          const anchors = reanchorTo(update.state, titles);
+          if (anchors !== null) update.view.dispatch({ effects: setFocusAnchors.of(anchors) });
         }),
       ],
     }),
@@ -223,14 +223,21 @@ export function createEditor(hooks: EditorHooks) {
       });
     },
 
-    /** Anchors a focus session to the task the cursor is on. */
-    anchorTo(pos: number): void {
-      const line = view.state.doc.lineAt(pos);
-      view.dispatch({ effects: setFocusAnchor.of(anchorForLine(line)) });
+    /**
+     * Anchors a focus session to the given task lines, and collapses the
+     * selection to the end of the last of them. Leaving a multi-line selection
+     * standing would mean the next character typed replaced the whole group.
+     */
+    anchorTo(positions: readonly number[]): void {
+      const lines = positions.map((pos) => view.state.doc.lineAt(pos));
+      view.dispatch({
+        effects: setFocusAnchors.of(lines.map(anchorForLine)),
+        selection: { anchor: lines[lines.length - 1]?.to ?? view.state.selection.main.head },
+      });
     },
 
     clearAnchor(): void {
-      view.dispatch({ effects: setFocusAnchor.of(null) });
+      view.dispatch({ effects: setFocusAnchors.of([]) });
     },
 
     /**
@@ -238,23 +245,29 @@ export function createEditor(hooks: EditorHooks) {
      * trusted when the line it names still holds that task; otherwise the title
      * decides, so a document edited in another tab cannot focus the wrong line.
      */
-    restoreFocus(anchor: number | null, taskText: string): void {
+    restoreFocus(anchors: readonly number[], titles: readonly string[]): void {
       const { state } = view;
-      let line = null;
-      if (anchor !== null && anchor <= state.doc.length) {
-        const candidate = state.doc.lineAt(anchor);
-        const parsed = parseLine(candidate.text);
-        if (parsed.kind === "task" && parsed.text.trim() === taskText.trim()) line = candidate;
-      }
-      line ??= resolveFocusedLine(state, taskText);
-      view.dispatch({ effects: setFocusAnchor.of(line ? anchorForLine(line) : null) });
+      const lines = anchors
+        .map((anchor) => (anchor <= state.doc.length ? state.doc.lineAt(anchor) : null))
+        .filter((line): line is NonNullable<typeof line> => {
+          if (!line) return false;
+          const parsed = parseLine(line.text);
+          return parsed.kind === "task" && titles.includes(parsed.text.trim());
+        });
+
+      const resolved = lines.length === titles.length ? lines : resolveFocusedLines(state, titles);
+      view.dispatch({ effects: setFocusAnchors.of(resolved.map(anchorForLine)) });
     },
 
-    /** Marks a line complete and parks the cursor on the next open task (§13). */
-    completeAt(pos: number): void {
-      const spec = completeLineAt(view.state, pos);
-      if (spec) view.dispatch({ ...spec, userEvent: "input" });
-      const next = nextOpenTaskAfter(view.state, pos);
+    /** Marks lines complete and parks the cursor on the next open task (§13). */
+    completeAt(positions: readonly number[]): void {
+      // Back to front, so completing one line cannot shift the next.
+      for (const pos of [...positions].sort((a, b) => b - a)) {
+        const spec = completeLineAt(view.state, pos);
+        if (spec) view.dispatch({ ...spec, userEvent: "input" });
+      }
+      const last = Math.max(...positions);
+      const next = nextOpenTaskAfter(view.state, last);
       if (next) view.dispatch({ selection: { anchor: next.to }, scrollIntoView: true });
       view.focus();
     },

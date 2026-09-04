@@ -8,6 +8,7 @@ const GROUPS: Array<{ title: string; keys: Array<[string, string]> }> = [
     title: "Focus",
     keys: [
       ["⌘⏎", "Start focus on the task at the cursor"],
+      ["⌘⏎", "With lines selected, focus on all of them at once"],
       ["⌘D", "Complete the task at the cursor"],
     ],
   },

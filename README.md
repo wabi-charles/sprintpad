@@ -56,6 +56,7 @@ your list out, select it and copy — it is plain text.
 | New task | `Enter` |
 | Step back out of a nested task | `Enter` again on the empty line |
 | Start focus on the task at the cursor | `⌘Enter` |
+| Focus on several tasks at once | select the lines, then `⌘Enter` |
 | Complete task | `⌘D` |
 | Unwrap a header or completed task | `Backspace` at the head of the text |
 | Make a line a header | type `# `, or "Toggle header" in `⌘K` |
@@ -86,7 +87,13 @@ so select it and copy.
 ## Focus sessions
 
 `⌘Enter` starts a session on the task under the cursor. No modal, no
-confirmation. The timer is wall-clock based, so it stays accurate through a
+confirmation.
+
+Select several lines first and `⌘Enter` covers all of them in **one** session —
+still one timer and one stretch of work, it just spans a few tasks. Headers and
+blank lines in the selection are skipped, the panel names the first task and
+counts the rest, and **Done** completes the group. A session also ends by
+itself once every task in it is ticked off. The timer is wall-clock based, so it stays accurate through a
 backgrounded tab and survives a page reload mid-session.
 
 Keep editing while it runs: the session stays attached to its task as you

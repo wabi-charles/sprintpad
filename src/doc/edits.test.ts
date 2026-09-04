@@ -4,7 +4,7 @@ import {
   backspaceAtLineHead,
   changeIndent,
   clearCompleted,
-  focusTargetAt,
+  focusTargetsIn,
   nextOpenTaskAfter,
   newTaskLine,
   toggleDone,
@@ -205,25 +205,42 @@ describe("changeIndent", () => {
   });
 });
 
-describe("focusTargetAt", () => {
+describe("focusTargetsIn", () => {
   it("returns the task under the cursor", () => {
-    const target = focusTargetAt(stateOf("# TODAY\nClaude data se|tup"));
-    expect(target).toMatchObject({ text: "Claude data setup" });
+    expect(focusTargetsIn(stateOf("# TODAY\nClaude data se|tup"))).toMatchObject([
+      { text: "Claude data setup" },
+    ]);
   });
 
-  it("returns the task under the cursor when it is complete", () => {
-    expect(focusTargetAt(stateOf("[x] don|e"))).toMatchObject({ text: "done", completed: true });
+  it("returns every task the selection touches", () => {
+    expect(focusTargetsIn(stateOf("|one\ntwo\nthree|")).map((t) => t.text)).toEqual([
+      "one",
+      "two",
+      "three",
+    ]);
   });
 
-  it("returns null on a header or blank line", () => {
-    expect(focusTargetAt(stateOf("# TODAY|\none"))).toBeNull();
-    expect(focusTargetAt(stateOf("one\n|"))).toBeNull();
+  it("skips headers, blanks and empty tasks inside a selection", () => {
+    expect(focusTargetsIn(stateOf("|# TODAY\none\n\n  \ntwo|")).map((t) => t.text)).toEqual([
+      "one",
+      "two",
+    ]);
   });
 
-  it("reports the line span so the caller can anchor to it", () => {
-    const state = stateOf("one\ntw|o");
-    const target = focusTargetAt(state)!;
-    expect(state.doc.sliceString(target.from, target.to)).toBe("two");
+  it("returns a completed task under the cursor", () => {
+    expect(focusTargetsIn(stateOf("[x] don|e"))).toMatchObject([{ text: "done", completed: true }]);
+  });
+
+  it("returns nothing on a header or blank line", () => {
+    expect(focusTargetsIn(stateOf("# TODAY|\none"))).toEqual([]);
+    expect(focusTargetsIn(stateOf("one\n|"))).toEqual([]);
+  });
+
+  it("reports line spans so the caller can anchor to each", () => {
+    const state = stateOf("|one\ntwo|");
+    const [first, second] = focusTargetsIn(state);
+    expect(state.doc.sliceString(first!.from, first!.to)).toBe("one");
+    expect(state.doc.sliceString(second!.from, second!.to)).toBe("two");
   });
 });
 
