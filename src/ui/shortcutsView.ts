@@ -8,10 +8,17 @@ const GROUPS: Array<{ title: string; keys: Array<[string, string]> }> = [
     title: "Focus",
     keys: [
       ["⌘⏎", "Start focus on the task at the cursor"],
-      ["⌘D", "Complete task"],
-      ["Space", "Pause or resume, while the timer has focus"],
-      ["Esc", "End session, while the timer has focus"],
-      ["⇧⌘Space", "Pause or resume, from anywhere"],
+      ["⌘D", "Complete the task at the cursor"],
+    ],
+  },
+  {
+    title: "During a session",
+    keys: [
+      ["⇧⌘Space", "Pause, resume, or keep working when time is up"],
+      ["⇧⌘⏎", "Done — complete the focused task"],
+      ["⇧⌘B", "Take a break"],
+      ["⇧⌘.", "End the session"],
+      ["Space / Esc", "The same, while the timer panel has focus"],
     ],
   },
   {

@@ -507,3 +507,32 @@ Worth recording: the previous addendum blamed this on the starter document's
 tutorial text. That was wrong. Replacing the starter content was a good change
 on its own terms, but it was not the cause, and it would not have fixed an
 existing document.
+
+
+---
+
+## Addendum 15: session controls are global
+
+`Space` and `Esc` only worked while the timer panel held focus -- which during
+a session it never does, because the cursor is in the document where you are
+working. Reaching them meant going for the mouse, in the one mode where that
+is most disruptive.
+
+The four session controls are now global chords, live wherever focus sits:
+
+| Key | Action |
+| --- | --- |
+| `⇧⌘Space` | Pause, resume, or keep working when time is up |
+| `⇧⌘⏎` | Done -- complete the focused task |
+| `⇧⌘B` | Take a break |
+| `⇧⌘.` | End the session |
+
+`⇧⌘Space` covering three states is deliberate: all three mean "keep the clock
+running". It resumes a pause and starts another stretch once the timer is up,
+so there is one key for the clock rather than one per phase.
+
+They are gated on a session existing and on no dialog being open, so they never
+fire into the palette or the settings panel. `⇧⌘⏎` pairs with `⌘⏎`: one starts
+a session on the task at the cursor, the other finishes the one that is
+running -- which matters because `⌘D` completes whatever the cursor happens to
+be on, not necessarily the task being timed.

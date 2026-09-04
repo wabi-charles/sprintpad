@@ -302,6 +302,24 @@ function openPalette(): void {
   palette.open(() => editor.focus());
 }
 
+/**
+ * ⇧⌘Space. One key for "keep the clock running": resume while paused, and
+ * start another stretch once the timer is up.
+ */
+function toggleClock(): void {
+  if (!session) return;
+  if (session.phase === "expired") {
+    mutate((current, now) => keepWorking(current, settings.mode, settings.focusSec, now));
+  } else {
+    mutate(togglePause);
+  }
+}
+
+function takeBreak(): void {
+  if (!session || session.phase === "break") return;
+  mutate((current, now) => beginBreak(current, settings.breakSec, now));
+}
+
 function openShortcuts(): void {
   if (palette.isOpen) palette.close();
   if (timerSettings.isOpen) timerSettings.close();
@@ -327,25 +345,52 @@ function barButton(label: string, run: () => void): HTMLButtonElement {
   return button;
 }
 
+const anyDialogOpen = () => palette.isOpen || timerSettings.isOpen || shortcuts.isOpen;
+
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
   const mod = event.metaKey || event.ctrlKey;
-  if (event.key === "Escape" && (palette.isOpen || timerSettings.isOpen || shortcuts.isOpen)) {
+
+  if (event.key === "Escape" && anyDialogOpen()) {
     // Handled here rather than on the dialogs themselves: clicking inside one
     // moves focus to the body, and Escape has to keep working from there.
     event.preventDefault();
     if (palette.isOpen) palette.close();
     else if (timerSettings.isOpen) timerSettings.close();
     else shortcuts.close();
-  } else if (mod && event.key.toLowerCase() === "k") {
+    return;
+  }
+
+  if (mod && !event.shiftKey && event.key.toLowerCase() === "k") {
     event.preventDefault();
     openPalette();
-  } else if (mod && event.key === "/") {
+    return;
+  }
+  if (mod && event.key === "/") {
     event.preventDefault();
     openShortcuts();
-  } else if (mod && event.shiftKey && event.code === "Space") {
+    return;
+  }
+
+  /*
+   * Session controls are global on purpose: during a session the cursor is in
+   * the document, so anything scoped to the timer panel is out of reach
+   * without going for the mouse.
+   */
+  if (!session || !mod || !event.shiftKey || anyDialogOpen()) return;
+
+  if (event.code === "Space") {
     event.preventDefault();
-    mutate(togglePause);
+    toggleClock();
+  } else if (event.key === "Enter") {
+    event.preventDefault();
+    completeFocusedTask();
+  } else if (event.key === "." || event.key === ">") {
+    event.preventDefault();
+    endSession(false);
+  } else if (event.key.toLowerCase() === "b") {
+    event.preventDefault();
+    takeBreak();
   }
 });
 

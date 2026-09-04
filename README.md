@@ -65,8 +65,10 @@ your list out, select it and copy — it is plain text.
 | Search | `⌘F` |
 | Command palette | `⌘K` |
 | Keyboard shortcuts | `⌘/` |
-| Pause / resume | `Space` while the timer has focus, or `⇧⌘Space` anywhere |
-| End session | `Esc` while the timer has focus |
+| Pause / resume / keep working | `⇧⌘Space` |
+| Done — complete the focused task | `⇧⌘⏎` |
+| Take a break | `⇧⌘B` |
+| End session | `⇧⌘.` |
 
 The command palette (`⌘K`, `Esc` to close) holds the four things with no other
 route, ordered by how often you reach for them: timer settings, clear completed
