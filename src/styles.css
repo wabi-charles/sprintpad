@@ -951,6 +951,23 @@ body {
   margin-top: 14px;
 }
 
+/* A way out that changes nothing, set apart from the three that do. */
+.sp-sync__later {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sp-fg-faint);
+  cursor: pointer;
+}
+
+.sp-sync__later:hover {
+  color: var(--sp-fg);
+  text-decoration: underline;
+}
+
 /* -------------------------------------------------------------- pads ----- */
 
 .sp-pads {

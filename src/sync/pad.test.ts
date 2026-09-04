@@ -190,27 +190,17 @@ describe("keeping in step", () => {
     expect(server.handler.mock.calls.length).toBe(calls + 1);
   });
 
-  it("reports a conflict when both sides moved, rather than picking one", async () => {
-    const { sync, setDoc, doc } = harness("one");
-    await sync.unlockWith("pw");
+  it("does not call a bare stamp change a conflict", async () => {
+    const device = harness("one");
+    await device.sync.unlockWith("pw");
 
-    setDoc("changed here");
+    device.setDoc("changed here");
+    // The stamp moved but the content did not; there is nothing to arbitrate.
     server.editRemotely("happy");
-    await sync.sync();
+    await device.sync.sync();
 
-    expect(sync.status).toEqual({ kind: "conflict" });
-    expect(doc).toBe("one");
-  });
-
-  it("resolves a conflict by keeping this device", async () => {
-    const { sync, setDoc } = harness("one");
-    await sync.unlockWith("pw");
-    setDoc("changed here");
-    server.editRemotely("happy");
-    await sync.sync();
-
-    await sync.resolve("local");
-    expect(sync.status).toMatchObject({ kind: "synced" });
+    expect(device.sync.status).toMatchObject({ kind: "synced" });
+    expect(device.doc).toBe("changed here");
   });
 });
 
@@ -343,5 +333,112 @@ describe("a pad open on two devices", () => {
     desk.statuses.length = 0;
     await desk.sync.sync();
     expect(desk.statuses).toContain("working");
+  });
+});
+
+/**
+ * What happens when two devices really do disagree. Before this, the pad
+ * simply stopped syncing and nothing in the app could unstick it.
+ */
+describe("settling a real disagreement", () => {
+  const PASSWORD = "correct horse battery staple";
+
+  async function diverged(base: string, mine: string, theirs: string) {
+    const phone = harness(base);
+    await phone.sync.unlockWith(PASSWORD);
+    const desk = harness(base);
+    await desk.sync.unlockWith(PASSWORD);
+
+    phone.setDoc(theirs);
+    await phone.sync.sync();
+    desk.setDoc(mine);
+    await desk.sync.sync();
+    return { phone, desk };
+  }
+
+  it("merges edits that touch different lines, without asking", async () => {
+    const { desk } = await diverged(
+      "# TODAY\nShip it\nCall the bank",
+      "# TODAY\nShip it\nCall the bank\nAdded at the desk",
+      "# TODAY\n[x] Ship it\nCall the bank",
+    );
+
+    expect(desk.sync.status).toMatchObject({ kind: "synced" });
+    expect(desk.doc).toContain("[x] Ship it");
+    expect(desk.doc).toContain("Added at the desk");
+    expect(desk.sync.standoff).toBeNull();
+  });
+
+  it("carries a merge back to the other device", async () => {
+    const { phone, desk } = await diverged(
+      "# TODAY\nShip it\nCall the bank",
+      "# TODAY\nShip it\nCall the bank\nAdded at the desk",
+      "# TODAY\n[x] Ship it\nCall the bank",
+    );
+
+    await phone.sync.sync({ quiet: true });
+    expect(phone.doc).toBe(desk.doc);
+  });
+
+  it("asks when both devices rewrote the same line", async () => {
+    const { desk } = await diverged(
+      "# TODAY\nCall the bank",
+      "# TODAY\nCall the bank about the mortgage",
+      "# TODAY\nCall the bank before noon",
+    );
+
+    expect(desk.sync.status).toEqual({ kind: "conflict" });
+    expect(desk.sync.standoff).toEqual({
+      mine: "# TODAY\nCall the bank about the mortgage",
+      theirs: "# TODAY\nCall the bank before noon",
+    });
+    // Nothing is touched until a person chooses.
+    expect(desk.doc).toBe("# TODAY\nCall the bank about the mortgage");
+  });
+
+  it("keeps both lists when asked, losing nothing", async () => {
+    const { desk } = await diverged(
+      "# TODAY\nCall the bank",
+      "# TODAY\nCall the bank about the mortgage",
+      "# TODAY\nCall the bank before noon",
+    );
+
+    await desk.sync.resolve("both");
+
+    expect(desk.sync.status).toMatchObject({ kind: "synced" });
+    expect(desk.doc).toContain("Call the bank about the mortgage");
+    expect(desk.doc).toContain("Call the bank before noon");
+    expect(desk.doc).toContain("# FROM THE OTHER DEVICE");
+    expect(desk.sync.standoff).toBeNull();
+  });
+
+  it("can keep just this device, or just the other", async () => {
+    const kept = await diverged(
+      "# TODAY\nCall the bank",
+      "# TODAY\nCall the bank about the mortgage",
+      "# TODAY\nCall the bank before noon",
+    );
+    await kept.desk.sync.resolve("local");
+    expect(kept.desk.doc).toBe("# TODAY\nCall the bank about the mortgage");
+
+    const taken = await diverged(
+      "# TODAY\nPay rent",
+      "# TODAY\nPay rent today",
+      "# TODAY\nPay rent tomorrow",
+    );
+    await taken.desk.sync.resolve("remote");
+    expect(taken.desk.doc).toBe("# TODAY\nPay rent tomorrow");
+  });
+
+  it("stops being a conflict once it is settled", async () => {
+    const { desk } = await diverged(
+      "# TODAY\nCall the bank",
+      "# TODAY\nCall the bank about the mortgage",
+      "# TODAY\nCall the bank before noon",
+    );
+
+    await desk.sync.resolve("both");
+    await desk.sync.sync({ quiet: true });
+    expect(desk.sync.status).toMatchObject({ kind: "synced" });
   });
 });

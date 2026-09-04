@@ -17,6 +17,7 @@ import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
 import { createPadsView } from "./ui/padsView";
 import { createTouchBar } from "./ui/touchBar";
+import { createConflictView } from "./ui/conflictView";
 import { createUnlockView } from "./ui/unlockView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
@@ -88,7 +89,12 @@ padBadge.className = "sp-bar__pad";
   const dot = document.createElement("span");
   dot.className = "sp-bar__dot";
   padBadge.append(name, dot);
-  padBadge.addEventListener("click", () => padsPanel.open(() => editor.focus()));
+  padBadge.addEventListener("click", () => {
+    // A conflicted pad has one thing worth doing, and this is the only badge
+    // there is to reach it from.
+    if (padSync.status.kind === "conflict") conflictPanel.open(() => editor.focus());
+    else padsPanel.open(() => editor.focus());
+  });
 }
 const barActions = document.createElement("div");
 barActions.className = "sp-bar__actions";
@@ -168,10 +174,18 @@ const padSync = createPadSync({
   onStatus: (status) => {
     unlockPanel.refresh();
     padsPanel.refresh();
+    conflictPanel.refresh();
     showPadStatus(status);
+    // Sync is stopped until this is answered, so it is asked rather than left
+    // in a badge nobody looks at. Merging first is what makes it rare enough
+    // to be worth interrupting for.
+    if (status.kind === "conflict" && !conflictPanel.isOpen && !unlockPanel.isOpen) {
+      conflictPanel.open(() => editor.focus());
+    }
   },
 });
 const unlockPanel = createUnlockView(app, padSync, () => saveState.flush());
+const conflictPanel = createConflictView(app, padSync, () => saveState.flush());
 function showPadStatus(status: SyncStatus): void {
   padBadge.dataset.state = status.kind;
   if (activePadId === null) {
@@ -184,7 +198,7 @@ function showPadStatus(status: SyncStatus): void {
       : status.kind === "error"
         ? status.detail
         : status.kind === "conflict"
-          ? "This device and another have both changed"
+          ? "Both devices changed the same lines — click to settle it"
           : status.kind === "locked"
             ? "Locked — enter this pad's password"
             : "Syncing…";

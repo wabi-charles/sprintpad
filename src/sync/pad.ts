@@ -9,6 +9,7 @@ import {
 } from "./crypto";
 import { SYNC_ENDPOINT } from "./endpoint";
 import { RemoteMovedOn, SyncUnavailable, WriteRefused, createRemote } from "./remote";
+import { mergeDocs } from "./merge";
 import { reconcile } from "./reconcile";
 
 /**
@@ -44,6 +45,8 @@ export function createPadSync(hooks: PadSyncHooks) {
     padId === null ? { kind: "local" } : credentials === null ? { kind: "locked" } : { kind: "working" };
   let running = false;
   let again = false;
+  /** Both sides of a conflict no merge could settle, kept for the prompt. */
+  let standoff: { mine: string; theirs: string } | null = null;
 
   function setStatus(next: SyncStatus): void {
     status = next;
@@ -71,7 +74,24 @@ export function createPadSync(hooks: PadSyncHooks) {
       return;
     }
     if (decision.kind === "conflict") {
-      setStatus({ kind: "conflict" });
+      // Both devices changed the pad, which is not the same as disagreeing.
+      // The ancestor is on hand, so try to work it out before asking.
+      const theirDoc = stored ? await decryptPad(derived.encryption, stored.payload) : "";
+      const merged = mergeDocs(credentials.lastSynced!.doc, localDoc, theirDoc);
+
+      if (merged.kind === "conflict") {
+        standoff = { mine: localDoc, theirs: theirDoc };
+        setStatus({ kind: "conflict" });
+        return;
+      }
+
+      standoff = null;
+      hooks.applyRemote(merged.doc);
+      const payload = await encryptPad(derived.encryption, credentials.salt, merged.doc);
+      const at = await remote.put(padId, payload, stored?.updatedAt ?? null, derived.writeToken);
+      credentials = { ...credentials, lastSynced: { doc: merged.doc, updatedAt: at } };
+      hooks.store.saveCredentials(credentials);
+      setStatus({ kind: "synced", at });
       return;
     }
 
@@ -138,6 +158,11 @@ export function createPadSync(hooks: PadSyncHooks) {
       return status;
     },
 
+    /** The two documents a merge could not reconcile, while that is unsettled. */
+    get standoff(): { mine: string; theirs: string } | null {
+      return standoff;
+    },
+
     /**
      * Open the pad with a password.
      *
@@ -177,7 +202,14 @@ export function createPadSync(hooks: PadSyncHooks) {
       setStatus({ kind: "locked" });
     },
 
-    async resolve(keep: "local" | "remote"): Promise<void> {
+    /**
+     * Settle a conflict a merge could not.
+     *
+     * "both" is the default the UI offers, and the only one that cannot lose
+     * work: this is a text editor, so the fastest way to reconcile two lists
+     * is to be shown both and edit them together.
+     */
+    async resolve(keep: "local" | "remote" | "both"): Promise<void> {
       if (padId === null || !credentials) return;
       const remote = createRemote(SYNC_ENDPOINT);
       const derived = await unlock();
@@ -185,19 +217,28 @@ export function createPadSync(hooks: PadSyncHooks) {
 
       try {
         const stored = await remote.get(padId);
+        const theirDoc = stored ? await decryptPad(derived.encryption, stored.payload) : "";
+
         if (keep === "remote") {
           if (!stored) return;
-          const doc = await decryptPad(derived.encryption, stored.payload);
-          hooks.applyRemote(doc);
-          credentials = { ...credentials, lastSynced: { doc, updatedAt: stored.updatedAt } };
-        } else {
-          const localDoc = hooks.getDoc();
-          const payload = await encryptPad(derived.encryption, credentials.salt, localDoc);
-          const updatedAt = await remote.put(padId, payload, null, derived.writeToken);
-          credentials = { ...credentials, lastSynced: { doc: localDoc, updatedAt } };
+          hooks.applyRemote(theirDoc);
+          credentials = { ...credentials, lastSynced: { doc: theirDoc, updatedAt: stored.updatedAt } };
+          hooks.store.saveCredentials(credentials);
+          standoff = null;
+          setStatus({ kind: "synced", at: stored.updatedAt });
+          return;
         }
+
+        const localDoc = hooks.getDoc();
+        const doc = keep === "both" ? joinBothSides(localDoc, theirDoc) : localDoc;
+        if (keep === "both") hooks.applyRemote(doc);
+
+        const payload = await encryptPad(derived.encryption, credentials.salt, doc);
+        const updatedAt = await remote.put(padId, payload, null, derived.writeToken);
+        credentials = { ...credentials, lastSynced: { doc, updatedAt } };
         hooks.store.saveCredentials(credentials);
-        setStatus({ kind: "synced", at: credentials.lastSynced?.updatedAt ?? Date.now() });
+        standoff = null;
+        setStatus({ kind: "synced", at: updatedAt });
       } catch (error) {
         setStatus({
           kind: "error",
@@ -208,6 +249,13 @@ export function createPadSync(hooks: PadSyncHooks) {
 
     sync,
   };
+}
+
+/** Both lists, one after the other, with a header saying where the second came from. */
+export function joinBothSides(mine: string, theirs: string): string {
+  if (theirs.trim() === "") return mine;
+  if (mine.trim() === "") return theirs;
+  return `${mine.replace(/\n+$/, "")}\n\n# FROM THE OTHER DEVICE\n${theirs.replace(/^\n+/, "")}`;
 }
 
 export type PadSync = ReturnType<typeof createPadSync>;
