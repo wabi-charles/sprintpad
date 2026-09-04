@@ -75,7 +75,6 @@ body {
 .sp-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   width: min(var(--sp-measure), 100% - 32px);
   margin: 0 auto;
@@ -83,15 +82,82 @@ body {
 }
 
 .sp-bar__brand {
+  flex: none;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.16em;
   color: var(--sp-fg-faint);
 }
 
+/* The pad you are in, and whether it is keeping up. */
+.sp-bar__pad {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  margin-left: 14px;
+  min-width: 0;
+  border: 1px solid var(--sp-border);
+  border-radius: 999px;
+  background: transparent;
+  padding: 3px 10px;
+  color: var(--sp-fg-dim);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sp-bar__pad:hover {
+  border-color: var(--sp-fg-faint);
+  color: var(--sp-fg);
+}
+
+.sp-bar__padname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-bar__dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--sp-fg-faint);
+}
+
+.sp-bar__pad[data-state="synced"] .sp-bar__dot {
+  background: #4f9d69;
+}
+
+.sp-bar__pad[data-state="error"] .sp-bar__dot,
+.sp-bar__pad[data-state="conflict"] .sp-bar__dot,
+.sp-bar__pad[data-state="locked"] .sp-bar__dot {
+  background: var(--sp-accent);
+}
+
+/* Working state reads as motion rather than a colour of its own. */
+.sp-bar__pad[data-state="working"] .sp-bar__dot {
+  animation: sp-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes sp-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-bar__pad[data-state="working"] .sp-bar__dot {
+    animation: none;
+  }
+}
+
 .sp-bar__actions {
   display: flex;
+  flex: none;
   gap: 4px;
+  margin-left: auto;
 }
 
 .sp-bar__button {

@@ -180,6 +180,11 @@ which opens the same list on any device given the password. The root is never a
 pad: `sprintpad.app` on its own is always the local browser list, and it keeps
 its own document, history and session, entirely separate from every pad.
 
+When you are in a pad, the top bar names it, with a dot for whether it is
+keeping up — green synced, amber needs you, pulsing while it works. Click it to
+manage pads. At the root there is no badge: nothing to say, that is the
+default.
+
 `⌘K → Pads` lists the pads this device knows, shows which is open, and is where
 you add and remove them.
 

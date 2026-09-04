@@ -22,7 +22,7 @@ import {
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
-import { createPadSync } from "./sync/pad";
+import { createPadSync, type SyncStatus } from "./sync/pad";
 import { padIdFromPath } from "./sync/padId";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
@@ -93,9 +93,28 @@ header.className = "sp-bar";
 const brand = document.createElement("span");
 brand.className = "sp-bar__brand";
 brand.textContent = "SPRINTPAD";
+
+/*
+ * Which pad you are in. A pad and the local list look identical otherwise, so
+ * without this the only clue is the address bar. Absent at the root, where
+ * there is nothing to say: that is the default.
+ */
+const padBadge = document.createElement("button");
+padBadge.type = "button";
+padBadge.className = "sp-bar__pad";
+padBadge.hidden = activePadId === null;
+if (activePadId !== null) {
+  const name = document.createElement("span");
+  name.className = "sp-bar__padname";
+  name.textContent = activePadId;
+  const dot = document.createElement("span");
+  dot.className = "sp-bar__dot";
+  padBadge.append(name, dot);
+  padBadge.addEventListener("click", () => padsPanel.open(() => editor.focus()));
+}
 const barActions = document.createElement("div");
 barActions.className = "sp-bar__actions";
-header.append(brand, barActions);
+header.append(brand, padBadge, barActions);
 
 const focusHost = document.createElement("div");
 const workpad = document.createElement("main");
@@ -161,12 +180,28 @@ const padSync = createPadSync({
   // Arriving from another device is an edit like any other: undoable, and the
   // text it replaces becomes a version of its own.
   applyRemote: (doc) => restoreVersion(doc),
-  onStatus: () => {
+  onStatus: (status) => {
     unlockPanel.refresh();
     padsPanel.refresh();
+    showPadStatus(status);
   },
 });
 const unlockPanel = createUnlockView(app, padSync, () => saveState.flush());
+function showPadStatus(status: SyncStatus): void {
+  if (activePadId === null) return;
+  padBadge.dataset.state = status.kind;
+  padBadge.title =
+    status.kind === "synced"
+      ? `Synced ${new Date(status.at).toLocaleTimeString()}`
+      : status.kind === "error"
+        ? status.detail
+        : status.kind === "conflict"
+          ? "This device and another have both changed"
+          : status.kind === "locked"
+            ? "Locked — enter this pad's password"
+            : "Syncing…";
+}
+
 const padsPanel = createPadsView(app, {
   backend,
   sync: padSync,
@@ -558,6 +593,10 @@ document.addEventListener("visibilitychange", () => {
 setInterval(render, TICK_MS);
 render();
 editor.focus();
+
+// The badge starts with whatever state the session opened in; onStatus only
+// speaks up when that changes.
+showPadStatus(padSync.status);
 
 // Pick up anything another device wrote while this one was closed.
 if (padSync.isUnlocked) void padSync.sync();

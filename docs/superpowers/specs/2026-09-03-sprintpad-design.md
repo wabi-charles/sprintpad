@@ -927,3 +927,23 @@ Now: indented to meet the inputs, collapsed entirely when empty, and the submit
 row carries its own top margin so it has room either way. The layout does shift
 by one line when a message appears, which is the honest trade for not holding
 open a gap that is empty almost always.
+
+
+---
+
+## Addendum 30: knowing which pad you are in
+
+A pad and the local list are visually identical, so the only clue was the
+address bar. The top bar names the pad now, with a dot for its sync state --
+green for synced, amber for anything wanting attention, pulsing while it works
+(and still, under `prefers-reduced-motion`). The badge opens the pad manager,
+which is the thing you would want next.
+
+Nothing is shown at the root. The absence is the signal: no badge means the
+list is local, which is the default and the common case, and labelling it would
+add chrome to every ordinary visit to say nothing.
+
+One bug found while checking it: the badge was blank on a locked pad, because
+`onStatus` fires on *change* and a session that opens already locked never
+changes. State that a callback only reports on transition still has to be read
+once at startup.
