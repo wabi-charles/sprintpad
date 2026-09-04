@@ -26,7 +26,9 @@ export function createTouchBar(parent: HTMLElement, editor: () => Editor): HTMLE
     button.textContent = control.label;
     button.title = control.title;
     button.setAttribute("aria-label", control.title);
-    // Down rather than click: the editor must not lose the cursor first.
+    // Swallow the press, not the tap: the editor must keep the caret (and, on a
+    // phone, the on-screen keyboard) while the command runs on the click.
+    button.addEventListener("pointerdown", (event) => event.preventDefault());
     button.addEventListener("mousedown", (event) => event.preventDefault());
     button.addEventListener("click", () => control.run(editor()));
     bar.append(button);
