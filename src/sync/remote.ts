@@ -18,6 +18,14 @@ export class SyncUnavailable extends Error {
   }
 }
 
+/** The pad exists and its write token does not match ours. */
+export class WriteRefused extends Error {
+  constructor() {
+    super("This pad belongs to a different password.");
+    this.name = "WriteRefused";
+  }
+}
+
 /** Someone else wrote to the pad between our read and our write. */
 export class RemoteMovedOn extends Error {
   constructor() {
@@ -53,19 +61,25 @@ export function createRemote(endpoint: string) {
      * `prev` is the stamp we believe is current. The server refuses the write
      * if it has moved on, so a save cannot silently clobber another device.
      */
-    async put(padKey: string, payload: EncryptedPad, prev: number | null): Promise<number> {
+    async put(
+      padKey: string,
+      payload: EncryptedPad,
+      prev: number | null,
+      writeToken: string,
+    ): Promise<number> {
       const query = prev === null ? "" : `?prev=${prev}`;
       let response: Response;
       try {
         response = await fetch(`${base}/pad/${encodeURIComponent(padKey)}${query}`, {
           method: "PUT",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", "x-pad-auth": writeToken },
           body: JSON.stringify(payload),
         });
       } catch (error) {
         throw new SyncUnavailable(error instanceof Error ? error.message : "network error");
       }
 
+      if (response.status === 403) throw new WriteRefused();
       if (response.status === 409) throw new RemoteMovedOn();
       if (!response.ok) throw new SyncUnavailable(`server returned ${response.status}`);
 

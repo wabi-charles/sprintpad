@@ -58,26 +58,52 @@ export function randomPadKey(): string {
     .replace(/=+$/, "");
 }
 
+export interface PadKeys {
+  /** Never leaves the browser. */
+  encryption: CryptoKey;
+  /**
+   * Sent to the server, which stores it and demands it back on writes. It is
+   * the other half of the derivation, so holding it reveals nothing about the
+   * encryption key -- and reversing it to the password costs the same 310k
+   * iterations as attacking the pad directly.
+   *
+   * Needed because a memorable pad id is a guessable one: without this,
+   * anyone who guessed the id could overwrite the pad. They still could not
+   * read it.
+   */
+  writeToken: string;
+}
+
 /**
- * Stretching the password takes a noticeable fraction of a second by design,
- * so the derived key is cached by the caller rather than re-derived per save.
+ * One stretch of the password yields both halves: 32 bytes of encryption key
+ * and 32 bytes of write token. Deliberately slow, so the caller caches it
+ * rather than deriving per save.
  */
-export async function deriveKey(password: string, salt: string): Promise<CryptoKey> {
+export async function derivePadKeys(password: string, salt: string): Promise<PadKeys> {
   const material = await crypto.subtle.importKey(
     "raw",
     utf8(password),
     "PBKDF2",
     false,
-    ["deriveKey"],
+    ["deriveBits"],
   );
 
-  return crypto.subtle.deriveKey(
+  const bits = await crypto.subtle.deriveBits(
     { name: "PBKDF2", salt: fromBase64(salt), iterations: ITERATIONS, hash: "SHA-256" },
     material,
+    512,
+  );
+
+  const bytes = new Uint8Array(bits);
+  const encryption = await crypto.subtle.importKey(
+    "raw",
+    bytes.slice(0, 32),
     { name: "AES-GCM", length: 256 },
     false,
     ["encrypt", "decrypt"],
   );
+
+  return { encryption, writeToken: toBase64(bytes.slice(32, 64)) };
 }
 
 export async function encryptPad(key: CryptoKey, salt: string, doc: string): Promise<EncryptedPad> {

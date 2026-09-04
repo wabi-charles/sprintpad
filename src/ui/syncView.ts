@@ -1,9 +1,9 @@
-import { padLink } from "../sync/endpoint";
 import type { PadSync, SyncStatus } from "../sync/pad";
+import { describePadIdProblem, normalizePadId, padIdProblem, padUrl } from "../sync/padId";
 
 /**
- * Sync setup. Deliberately tucked behind the palette and off by default: the
- * ordinary way to use Sprintpad is a pad that never leaves the browser.
+ * Sync setup. Advanced, and reached only from the palette: the ordinary way to
+ * use Sprintpad is the root, which is a pad that never leaves the browser.
  */
 export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () => void) {
   const overlay = document.createElement("div");
@@ -20,14 +20,26 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
   });
 
   let restoreFocus: (() => void) | null = null;
-  /** A pad handed over by link, waiting for its password. */
-  let pendingPadKey: string | null = null;
 
   function close(): void {
     overlay.hidden = true;
     const restore = restoreFocus;
     restoreFocus = null;
     restore?.();
+  }
+
+  function heading(text: string): void {
+    const el = document.createElement("h2");
+    el.className = "sp-sync__title";
+    el.textContent = text;
+    box.append(el);
+  }
+
+  function hint(text: string): void {
+    const el = document.createElement("p");
+    el.className = "sp-sync__hint";
+    el.textContent = text;
+    box.append(el);
   }
 
   function field(label: string, placeholder: string, type = "text") {
@@ -40,7 +52,8 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
     input.type = type;
     input.placeholder = placeholder;
     row.append(name, input);
-    return { row, input };
+    box.append(row);
+    return input;
   }
 
   function describe(status: SyncStatus): string {
@@ -53,140 +66,144 @@ export function createSyncView(parent: HTMLElement, sync: PadSync, onChange: () 
         return "This device and another have both changed.";
       case "error":
         return status.detail;
+      case "locked":
+        return "Enter this pad's password to open it.";
       default:
-        return "Off — this pad stays in this browser.";
+        return "This list stays in this browser.";
     }
   }
 
-  function paint(): void {
-    box.replaceChildren();
+  function actions(...buttons: HTMLButtonElement[]): void {
+    const row = document.createElement("div");
+    row.className = "sp-sync__actions";
+    row.append(...buttons);
+    box.append(row);
+  }
 
-    const heading = document.createElement("h2");
-    heading.className = "sp-sync__title";
-    heading.textContent = "Sync across devices";
-    box.append(heading);
+  function button(label: string, run: () => void, primary = false): HTMLButtonElement {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = `sp-btn${primary ? " sp-btn--primary" : ""}`;
+    el.textContent = label;
+    el.addEventListener("click", run);
+    return el;
+  }
 
+  /** At the root: choose a name, and go to it. */
+  function paintRoot(): void {
+    heading("Sync across devices");
+    hint(
+      "Advanced. Give your pad a name and it gets its own address — sprintpad.app/happy — " +
+        "which opens the same list anywhere, given the password. This page stays local.",
+    );
+
+    const name = field("Pad name", "happy");
+    const problem = document.createElement("p");
+    problem.className = "sp-sync__problem";
+    box.append(problem);
+
+    const go = button(
+      "Create pad",
+      () => {
+        const id = normalizePadId(name.value);
+        const trouble = padIdProblem(id);
+        if (trouble) {
+          problem.textContent = describePadIdProblem(trouble);
+          return;
+        }
+        // The pad's page asks for the password; this one never does.
+        location.assign(padUrl(id));
+      },
+      true,
+    );
+    name.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") go.click();
+    });
+    actions(go);
+  }
+
+  /** On a pad that has not been opened on this device. */
+  function paintLocked(): void {
+    heading(`Pad “${sync.padId}”`);
     const status = document.createElement("p");
     status.className = "sp-sync__status";
     status.textContent = describe(sync.status);
     box.append(status);
 
-    if (sync.isOn) {
-      // The link is the pad name: far easier to send to a phone than to type.
-      const link = document.createElement("input");
-      link.className = "sp-sync__key";
-      link.readOnly = true;
-      link.value = padLink(sync.padKey ?? "");
-      link.addEventListener("focus", () => link.select());
-      box.append(link);
-
-      const copy = document.createElement("button");
-      copy.type = "button";
-      copy.className = "sp-btn";
-      copy.textContent = "Copy link";
-      copy.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(link.value);
-          copy.textContent = "Copied";
-        } catch {
-          link.focus();
-        }
-      });
-
-      const hint = document.createElement("p");
-      hint.className = "sp-sync__hint";
-      hint.textContent =
-        "Open this link on another device and enter the same password. Keep it private — " +
-        "the link plus the password opens your list.";
-      box.append(hint);
-
-      const actions = document.createElement("div");
-      actions.className = "sp-sync__actions";
-      actions.append(copy);
-
-      if (sync.status.kind === "conflict") {
-        for (const [label, keep] of [
-          ["Keep this device", "local"],
-          ["Take the other", "remote"],
-        ] as const) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "sp-btn";
-          button.textContent = label;
-          button.addEventListener("click", async () => {
-            await sync.resolve(keep);
-            onChange();
-            paint();
-          });
-          actions.append(button);
-        }
-      }
-
-      const off = document.createElement("button");
-      off.type = "button";
-      off.className = "sp-btn";
-      off.textContent = "Turn off";
-      off.addEventListener("click", () => {
-        sync.disconnect();
-        paint();
-      });
-      actions.append(off);
-      box.append(actions);
-      return;
-    }
-
-    const blurb = document.createElement("p");
-    blurb.className = "sp-sync__hint";
-    blurb.textContent =
-      "Advanced. Your pad is encrypted in this browser before it is sent, so the server " +
-      "only ever holds an unreadable blob. There is no account — the password is the key, " +
-      "and nobody can reset it for you.";
-    box.append(blurb);
+    hint(
+      "The password is the key, not a login — this pad is encrypted in your browser, so the " +
+        "server cannot read it and nobody can reset the password for you.",
+    );
 
     const password = field("Password", "", "password");
-    box.append(password.row);
-
-    // Arriving from a shared link: the pad is already chosen, so only the
-    // password is asked for.
-    const joining = pendingPadKey !== null;
-    if (joining) {
-      const note = document.createElement("p");
-      note.className = "sp-sync__hint";
-      note.textContent = "Joining the pad from your link.";
-      box.append(note);
-    }
-
-    const connect = document.createElement("button");
-    connect.type = "button";
-    connect.className = "sp-btn sp-btn--primary";
-    connect.textContent = joining ? "Open this pad" : "Turn on sync";
-    connect.addEventListener("click", async () => {
-      if (password.input.value === "") return;
-      connect.disabled = true;
-      await sync.connect(pendingPadKey ?? "", password.input.value);
-      pendingPadKey = null;
-      onChange();
-      paint();
+    const open = button(
+      "Open pad",
+      async () => {
+        if (password.value === "") return;
+        open.disabled = true;
+        await sync.unlockWith(password.value);
+        onChange();
+        paint();
+      },
+      true,
+    );
+    password.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") open.click();
     });
+    actions(open, button("Use the local list", () => location.assign("/")));
+  }
 
-    const actions = document.createElement("div");
-    actions.className = "sp-sync__actions";
-    actions.append(connect);
-    box.append(actions);
+  /** On a pad that is open and syncing. */
+  function paintUnlocked(): void {
+    heading(`Pad “${sync.padId}”`);
+    const status = document.createElement("p");
+    status.className = "sp-sync__status";
+    status.textContent = describe(sync.status);
+    box.append(status);
+
+    const link = document.createElement("input");
+    link.className = "sp-sync__key";
+    link.readOnly = true;
+    link.value = padUrl(sync.padId ?? "");
+    link.addEventListener("focus", () => link.select());
+    box.append(link);
+
+    hint("Open that address on another device and enter the same password.");
+
+    const buttons: HTMLButtonElement[] = [];
+    if (sync.status.kind === "conflict") {
+      buttons.push(
+        button("Keep this device", async () => {
+          await sync.resolve("local");
+          onChange();
+          paint();
+        }),
+        button("Take the other", async () => {
+          await sync.resolve("remote");
+          onChange();
+          paint();
+        }),
+      );
+    }
+    buttons.push(
+      button("Forget on this device", () => {
+        sync.forget();
+        paint();
+      }),
+    );
+    actions(...buttons);
+  }
+
+  function paint(): void {
+    box.replaceChildren();
+    if (sync.padId === null) paintRoot();
+    else if (!sync.isUnlocked) paintLocked();
+    else paintUnlocked();
   }
 
   return {
     get isOpen(): boolean {
       return !overlay.hidden;
-    },
-
-    /** Opens ready to join the pad a link named. */
-    openForPad(padKey: string, onClose: () => void): void {
-      pendingPadKey = padKey;
-      restoreFocus = onClose;
-      paint();
-      overlay.hidden = false;
-      box.querySelector("input")?.focus();
     },
 
     open(onClose: () => void): void {

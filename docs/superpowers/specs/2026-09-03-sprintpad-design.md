@@ -750,3 +750,46 @@ its own test.
 The invariant worth stating plainly: **the site loaded plainly is always the
 local browser pad.** Only a pad link opens the password prompt, and the key is
 stripped from the address bar as it does.
+
+
+---
+
+## Addendum 23: a pad is a URL
+
+`sprintpad.app/happy` opens the pad named "happy". The root stays what it was:
+the local browser list, never synced.
+
+**A memorable id is a guessable one.** That is the whole security consequence,
+and it had to be answered before shipping: with a 24-character random key, no
+one could find your pad; with `happy`, anyone can. Content was already safe --
+it is encrypted -- but the Worker had *no auth on writes*, so a stranger who
+guessed the name could have overwritten the pad.
+
+So one PBKDF2 stretch now yields 64 bytes: 32 for the encryption key, which
+never leaves the browser, and 32 for a write token the server stores and
+demands back on writes. The token is useless for reading, and reversing it to
+the password costs the same 310k iterations as attacking the pad directly. A
+pad with no token yet belongs to its first writer, which also carries older
+pads forward.
+
+**Storage is scoped per pad.** This was the part that would have silently
+destroyed data: the root and each pad keep their own document, snapshots and
+session (`sprintpad.doc@happy`). Sharing one would mean opening `/happy`
+overwrote the local list. Settings stay global, being about the person rather
+than the pad.
+
+**Routing on GitHub Pages** has no rewrite rules, but it serves `404.html` for
+unknown paths -- so the build copies the app there, and `/happy` becomes a
+client-side route. The service worker gets a `navigateFallback` for the same
+reason. Reserved names (`assets`, `sw.js`, `pad`, …) cannot be claimed.
+
+**Analytics had to be told.** Pad names live in the path now, so GoatCounter
+would have recorded `/happy` as a page. The path is flattened to `/` before
+counting: a pad name is half of what opens it and has no business in a
+dashboard.
+
+One verification note worth keeping: the first run of the Worker auth tests
+showed the write token being returned by GET, which would have defeated the
+whole mechanism. It was deploy propagation -- the old version still answering --
+and re-running against the current one confirmed the token is stripped. Worth
+re-running rather than trusting a single pass right after a deploy.

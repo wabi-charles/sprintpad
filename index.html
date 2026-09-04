@@ -15,10 +15,15 @@
     <script type="module" src="/src/main.ts"></script>
 
     <!--
-      GoatCounter. No cookies, and nothing from the document is sent: the app
-      is a single page, so the only path ever recorded is "/". Localhost and
-      private networks are ignored by count.js, so development is not counted.
+      GoatCounter. No cookies, and nothing from the document is sent. Pad names
+      live in the path (/happy), so the path is flattened to "/" before it is
+      counted — a pad name is half of what opens it and has no business in an
+      analytics dashboard. Localhost and private networks are ignored by
+      count.js, so development is not counted.
     -->
+    <script>
+      window.goatcounter = { path: () => "/" };
+    </script>
     <script
       data-goatcounter="https://sprintpad.goatcounter.com/count"
       async

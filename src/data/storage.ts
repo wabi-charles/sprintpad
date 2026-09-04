@@ -33,11 +33,10 @@ export interface PersistedSession {
 }
 
 /**
- * Only present once sync is switched on; absent means the pad is local to this
- * browser, which is the default and the normal case.
+ * Present once a pad has been unlocked on this device. Absent means the pad is
+ * local to this browser, which is what the root always is.
  */
-export interface SyncConfig {
-  padKey: string;
+export interface PadCredentials {
   /** Per-pad salt for the key derivation; useless without the password. */
   salt: string;
   /**
@@ -61,14 +60,22 @@ export interface StorageLike {
  */
 export const DOC_VERSION = 2;
 
-export const KEYS = {
-  doc: "sprintpad.doc",
-  docVersion: "sprintpad.docVersion",
-  settings: "sprintpad.settings",
-  session: "sprintpad.session",
-  snapshots: "sprintpad.snapshots",
-  sync: "sprintpad.sync",
-} as const;
+/**
+ * Everything except settings is scoped to the pad being viewed. The root and
+ * each pad keep their own document, history and session -- sharing one would
+ * mean opening /happy silently overwrote the local list, and vice versa.
+ */
+export function keysFor(scope: string) {
+  const suffix = scope === "" ? "" : `@${scope}`;
+  return {
+    doc: `sprintpad.doc${suffix}`,
+    docVersion: `sprintpad.docVersion${suffix}`,
+    session: `sprintpad.session${suffix}`,
+    snapshots: `sprintpad.snapshots${suffix}`,
+    pad: `sprintpad.pad${suffix}`,
+    settings: "sprintpad.settings",
+  } as const;
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   mode: "countdown",
@@ -97,7 +104,9 @@ function isTimerState(value: unknown): value is TimerState {
   );
 }
 
-export function createStore(backend: StorageLike) {
+export function createStore(backend: StorageLike, scope = "") {
+  const KEYS = keysFor(scope);
+
   function readRaw(key: string): string | null {
     try {
       return backend.getItem(key);
@@ -219,16 +228,10 @@ export function createStore(backend: StorageLike) {
       writeRaw(KEYS.snapshots, JSON.stringify(list));
     },
 
-    loadSync(): SyncConfig | null {
-      const stored = readJson<Partial<SyncConfig>>(KEYS.sync);
+    loadCredentials(): PadCredentials | null {
+      const stored = readJson<Partial<PadCredentials>>(KEYS.pad);
       if (!stored || typeof stored !== "object") return null;
-      if (
-        typeof stored.padKey !== "string" ||
-        typeof stored.salt !== "string" ||
-        typeof stored.password !== "string"
-      ) {
-        return null;
-      }
+      if (typeof stored.salt !== "string" || typeof stored.password !== "string") return null;
 
       const synced = stored.lastSynced;
       const lastSynced =
@@ -236,24 +239,19 @@ export function createStore(backend: StorageLike) {
           ? { doc: synced.doc, updatedAt: synced.updatedAt }
           : null;
 
-      return {
-        padKey: stored.padKey,
-        salt: stored.salt,
-        password: stored.password,
-        lastSynced,
-      };
+      return { salt: stored.salt, password: stored.password, lastSynced };
     },
 
-    saveSync(config: SyncConfig | null): void {
-      if (config === null) {
+    saveCredentials(credentials: PadCredentials | null): void {
+      if (credentials === null) {
         try {
-          backend.removeItem(KEYS.sync);
+          backend.removeItem(KEYS.pad);
         } catch {
           // See writeRaw.
         }
         return;
       }
-      writeRaw(KEYS.sync, JSON.stringify(config));
+      writeRaw(KEYS.pad, JSON.stringify(credentials));
     },
 
     saveSession(session: PersistedSession | null): void {

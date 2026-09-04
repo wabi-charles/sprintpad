@@ -5,7 +5,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStore, type StorageLike } from "../data/storage";
 import { createPadSync } from "./pad";
-import { SYNC_ENDPOINT } from "./endpoint";
 
 function memoryStorage(): StorageLike {
   const data = new Map<string, string>();
@@ -18,7 +17,7 @@ function memoryStorage(): StorageLike {
 
 /** A stand-in for the Worker: the same contract, in memory. */
 function fakeServer() {
-  const pads = new Map<string, { payload: unknown; updatedAt: number }>();
+  const pads = new Map<string, { payload: unknown; updatedAt: number; auth?: string }>();
   let clock = 1_000;
 
   const handler = vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -29,16 +28,22 @@ function fakeServer() {
 
     if ((init?.method ?? "GET") === "GET") {
       const stored = pads.get(key);
-      return stored ? json(stored) : json({ error: "not found" }, 404);
+      // The token never leaves the server.
+      return stored ? json({ payload: stored.payload, updatedAt: stored.updatedAt }) : json({ error: "not found" }, 404);
     }
 
-    const prev = url.searchParams.get("prev");
+    const auth = new Headers(init?.headers).get("x-pad-auth");
+    if (!auth) return json({ error: "missing write token" }, 401);
+
     const current = pads.get(key);
+    if (current?.auth && current.auth !== auth) return json({ error: "forbidden" }, 403);
+
+    const prev = url.searchParams.get("prev");
     if (prev !== null && current && String(current.updatedAt) !== prev) {
       return json({ error: "conflict" }, 409);
     }
     const updatedAt = (clock += 1000);
-    pads.set(key, { payload: JSON.parse(String(init?.body)), updatedAt });
+    pads.set(key, { payload: JSON.parse(String(init?.body)), updatedAt, auth });
     return json({ updatedAt });
   });
 
@@ -57,11 +62,12 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-function harness(initialDoc: string) {
+function harness(initialDoc: string, padId: string | null = "happy") {
   let doc = initialDoc;
-  const store = createStore(memoryStorage());
+  const store = createStore(memoryStorage(), padId ?? "");
   const applied: string[] = [];
   const sync = createPadSync({
+    padId,
     store,
     getDoc: () => doc,
     applyRemote: (next) => {
@@ -73,77 +79,102 @@ function harness(initialDoc: string) {
   return { sync, store, applied, get doc() { return doc; }, setDoc: (v: string) => (doc = v) };
 }
 
-describe("turning sync on", () => {
-  it("is off until connected, and touches no network", async () => {
-    const { sync, store } = harness("one");
-    expect(sync.isOn).toBe(false);
+describe("the root", () => {
+  it("is local, and touches no network whatever happens", async () => {
+    const { sync, store } = harness("one", null);
+    expect(sync.status).toEqual({ kind: "local" });
+    expect(sync.isUnlocked).toBe(false);
     await sync.sync();
+    await sync.unlockWith("pw");
     expect(server.handler).not.toHaveBeenCalled();
-    expect(store.loadSync()).toBeNull();
+    expect(store.loadCredentials()).toBeNull();
+  });
+});
+
+describe("opening a pad", () => {
+  it("starts locked until a password is given", () => {
+    const { sync } = harness("one");
+    expect(sync.status).toEqual({ kind: "locked" });
+    expect(sync.isUnlocked).toBe(false);
   });
 
-  it("creates a pad and uploads what is here", async () => {
+  it("creates the pad and uploads what is here", async () => {
     const { sync, store } = harness("# TODAY\nShip it");
-    await sync.connect("", "hunter2");
+    await sync.unlockWith("hunter2");
 
-    expect(sync.isOn).toBe(true);
+    expect(sync.isUnlocked).toBe(true);
     expect(sync.status).toMatchObject({ kind: "synced" });
-    expect(store.loadSync()?.padKey).toBe(sync.padKey);
+    expect(store.loadCredentials()).not.toBeNull();
     expect(server.pads.size).toBe(1);
   });
 
   it("stores ciphertext, never the document", async () => {
     const { sync } = harness("# TODAY\nPay taxes");
-    await sync.connect("", "hunter2");
+    await sync.unlockWith("hunter2");
     expect(JSON.stringify([...server.pads.values()])).not.toContain("Pay taxes");
   });
 
-  it("uses the configured endpoint rather than asking for one", async () => {
-    const { sync } = harness("one");
-    await sync.connect("", "pw");
-    expect(String(server.handler.mock.calls[0]?.[0])).toContain(SYNC_ENDPOINT);
+  it("keeps each pad's document apart from the root's", () => {
+    const backend = memoryStorage();
+    createStore(backend, "").saveDoc("local list");
+    createStore(backend, "happy").saveDoc("shared list");
+    expect(createStore(backend, "").loadDoc()).toBe("local list");
+    expect(createStore(backend, "happy").loadDoc()).toBe("shared list");
   });
 });
 
 describe("a second device", () => {
-  it("joins by pad key and password, and takes the pad", async () => {
+  it("opens the same pad with the same password", async () => {
     const first = harness("# TODAY\nFrom device A");
-    await first.sync.connect("", "hunter2");
-    const padKey = first.sync.padKey!;
+    await first.sync.unlockWith("hunter2");
 
     const second = harness("# TODAY\nUntouched starter");
-    await second.sync.connect(padKey, "hunter2");
+    await second.sync.unlockWith("hunter2");
 
     expect(second.doc).toBe("# TODAY\nFrom device A");
-    expect(second.applied).toHaveLength(1);
   });
 
   it("refuses the wrong password and leaves the document alone", async () => {
     const first = harness("# TODAY\nSecret");
-    await first.sync.connect("", "right");
+    await first.sync.unlockWith("right");
 
     const second = harness("# TODAY\nMine");
-    await second.sync.connect(first.sync.padKey!, "wrong");
+    await second.sync.unlockWith("wrong");
 
-    expect(second.sync.status).toMatchObject({ kind: "error", detail: "Wrong password" });
+    expect(second.sync.isUnlocked).toBe(false);
+    expect(second.store.loadCredentials()).toBeNull();
     expect(second.doc).toBe("# TODAY\nMine");
+  });
+
+  it("cannot overwrite a pad it does not know the password for", async () => {
+    const owner = harness("owned");
+    await owner.sync.unlockWith("right");
+
+    // A stranger who guessed the name is refused at the door.
+    const stranger = harness("vandalism");
+    await stranger.sync.unlockWith("guessed");
+
+    expect(stranger.sync.isUnlocked).toBe(false);
+    expect(server.pads.size).toBe(1);
+    await owner.sync.sync();
+    expect(owner.sync.status).toMatchObject({ kind: "synced" });
   });
 });
 
 describe("keeping in step", () => {
   it("pushes a local edit", async () => {
     const { sync, setDoc } = harness("one");
-    await sync.connect("", "pw");
-    const before = server.pads.get(sync.padKey!)!.updatedAt;
+    await sync.unlockWith("pw");
+    const before = server.pads.get("happy")!.updatedAt;
 
     setDoc("one edited");
     await sync.sync();
-    expect(server.pads.get(sync.padKey!)!.updatedAt).toBeGreaterThan(before);
+    expect(server.pads.get("happy")!.updatedAt).toBeGreaterThan(before);
   });
 
   it("does nothing when neither side moved", async () => {
     const { sync } = harness("one");
-    await sync.connect("", "pw");
+    await sync.unlockWith("pw");
     const calls = server.handler.mock.calls.length;
     await sync.sync();
     // One read to check, and no write.
@@ -152,10 +183,10 @@ describe("keeping in step", () => {
 
   it("reports a conflict when both sides moved, rather than picking one", async () => {
     const { sync, setDoc, doc } = harness("one");
-    await sync.connect("", "pw");
+    await sync.unlockWith("pw");
 
     setDoc("changed here");
-    server.editRemotely(sync.padKey!);
+    server.editRemotely("happy");
     await sync.sync();
 
     expect(sync.status).toEqual({ kind: "conflict" });
@@ -164,9 +195,9 @@ describe("keeping in step", () => {
 
   it("resolves a conflict by keeping this device", async () => {
     const { sync, setDoc } = harness("one");
-    await sync.connect("", "pw");
+    await sync.unlockWith("pw");
     setDoc("changed here");
-    server.editRemotely(sync.padKey!);
+    server.editRemotely("happy");
     await sync.sync();
 
     await sync.resolve("local");
@@ -178,7 +209,7 @@ describe("when the network is down", () => {
   it("surfaces the failure and keeps the document", async () => {
     const { sync, doc } = harness("one");
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-    await sync.connect("", "pw");
+    await sync.unlockWith("pw");
 
     expect(sync.status).toMatchObject({ kind: "error" });
     expect(doc).toBe("one");
@@ -188,11 +219,11 @@ describe("when the network is down", () => {
 describe("turning sync off", () => {
   it("forgets the pad and stops syncing", async () => {
     const { sync, store } = harness("one");
-    await sync.connect("", "pw");
-    sync.disconnect();
+    await sync.unlockWith("pw");
+    sync.forget();
 
-    expect(sync.isOn).toBe(false);
-    expect(store.loadSync()).toBeNull();
+    expect(sync.isUnlocked).toBe(false);
+    expect(store.loadCredentials()).toBeNull();
     const calls = server.handler.mock.calls.length;
     await sync.sync();
     expect(server.handler.mock.calls.length).toBe(calls);
@@ -202,42 +233,42 @@ describe("turning sync off", () => {
 describe("a connection that fails", () => {
   it("leaves the browser local, with nothing stored", async () => {
     const first = harness("# TODAY\nSecret");
-    await first.sync.connect("", "right");
+    await first.sync.unlockWith("right");
 
     const second = harness("# TODAY\nMine");
-    await second.sync.connect(first.sync.padKey!, "wrong");
+    await second.sync.unlockWith("wrong");
 
     // Otherwise every later visit comes up in a broken sync state.
-    expect(second.sync.isOn).toBe(false);
-    expect(second.store.loadSync()).toBeNull();
+    expect(second.sync.isUnlocked).toBe(false);
+    expect(second.store.loadCredentials()).toBeNull();
     expect(second.sync.status).toMatchObject({ kind: "error" });
   });
 
   it("leaves nothing stored when the server cannot be reached", async () => {
     const { sync, store } = harness("one");
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-    await sync.connect("", "pw");
+    await sync.unlockWith("pw");
 
-    expect(sync.isOn).toBe(false);
-    expect(store.loadSync()).toBeNull();
+    expect(sync.isUnlocked).toBe(false);
+    expect(store.loadCredentials()).toBeNull();
   });
 
   it("does not disturb a pad that was already working", async () => {
     const { sync, store } = harness("one");
-    await sync.connect("", "pw");
-    const working = store.loadSync();
+    await sync.unlockWith("pw");
+    const working = store.loadCredentials();
 
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-    await sync.connect("someone-elses-pad-key", "pw");
+    await sync.unlockWith("pw");
 
-    expect(sync.isOn).toBe(true);
-    expect(store.loadSync()).toEqual(working);
+    expect(sync.isUnlocked).toBe(true);
+    expect(store.loadCredentials()).toEqual(working);
   });
 
   it("stores the pad only once a sync has actually succeeded", async () => {
     const { sync, store } = harness("one");
-    expect(store.loadSync()).toBeNull();
-    await sync.connect("", "pw");
-    expect(store.loadSync()?.padKey).toBe(sync.padKey);
+    expect(store.loadCredentials()).toBeNull();
+    await sync.unlockWith("pw");
+    expect(store.loadCredentials()).not.toBeNull();
   });
 });

@@ -1,9 +1,21 @@
+import { copyFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   server: { port: 5183 },
   plugins: [
+    {
+      // GitHub Pages has no rewrite rules, but it does serve 404.html for
+      // unknown paths -- which is exactly what /happy is. Shipping the app as
+      // 404.html turns that into a client-side route.
+      name: "pad-routes-via-404",
+      // After the HTML exists on disk, not during the bundle.
+      closeBundle() {
+        copyFileSync(resolve("dist/index.html"), resolve("dist/404.html"));
+      },
+    },
     VitePWA({
       // A list you cannot open without a network is not a list you can rely
       // on. autoUpdate so a deploy is picked up on the next load rather than
@@ -27,6 +39,8 @@ export default defineConfig({
       workbox: {
         // CNAME has no extension and must not be precached.
         globPatterns: ["**/*.{js,css,html,png,svg}"],
+        // Every pad path is the same app, served from the cached shell.
+        navigateFallback: "/index.html",
       },
     }),
   ],

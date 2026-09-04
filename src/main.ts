@@ -22,8 +22,8 @@ import {
 import { elapsedSec, formatClock, formatDurationLong, remainingSec } from "./focus/timer";
 import { createPalette, type PaletteCommand } from "./ui/palette";
 import { createSettingsView } from "./ui/settingsView";
-import { padKeyFromLocation } from "./sync/endpoint";
 import { createPadSync } from "./sync/pad";
+import { padIdFromPath } from "./sync/padId";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
 import { createSyncView } from "./ui/syncView";
@@ -60,7 +60,23 @@ const ORPHAN_GRACE_MS = 2000;
 /** How long the "you finished it" line stays up before returning to idle. */
 const FINISHED_MS = 5000;
 
-const store = createStore(window.localStorage);
+/**
+ * The URL names the pad. The root is always the local browser list; /happy is
+ * the pad "happy", which keeps its own document, history and session.
+ */
+const activePadId = padIdFromPath(window.location.pathname);
+
+/*
+ * Sync used to be a single global toggle with its own key. Pads are addressed
+ * by URL now, so that record is orphaned -- and it holds a password, which
+ * should not linger.
+ */
+try {
+  window.localStorage.removeItem("sprintpad.sync");
+} catch {
+  // Storage unavailable; nothing to clean up.
+}
+const store = createStore(window.localStorage, activePadId ?? "");
 let settings: Settings = store.loadSettings();
 let session: FocusSession | null = null;
 let snapshots: Snapshot[] = store.loadSnapshots();
@@ -101,7 +117,7 @@ const saveState = debounce((doc: string) => {
   savedDoc = doc;
   store.saveDoc(doc);
   persistSession();
-  if (padSync.isOn) pushToPad();
+  if (padSync.isUnlocked) pushToPad();
 }, 300);
 const notifier = createNotifier(() => settings.notifications);
 const chime = createChime(() => settings.sound);
@@ -137,6 +153,7 @@ const versions = createSnapshotsView(app, () => snapshots, restoreVersion);
  * leaves the browser, which stays the ordinary way to use Sprintpad.
  */
 const padSync = createPadSync({
+  padId: activePadId,
   store,
   getDoc: () => editor.getDoc(),
   // Arriving from another device is an edit like any other: undoable, and the
@@ -382,7 +399,7 @@ function buildCommands(): PaletteCommand[] {
     },
     {
       id: "sync",
-      label: padSync.isOn ? "Sync across devices…" : "Sync across devices (advanced)…",
+      label: activePadId === null ? "Sync across devices (advanced)…" : `Pad “${activePadId}”…`,
       run: () => syncPanel.open(() => editor.focus()),
     },
   ];
@@ -516,7 +533,7 @@ window.addEventListener("beforeunload", () => {
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     render();
-    if (padSync.isOn) void padSync.sync();
+    if (padSync.isUnlocked) void padSync.sync();
   }
 });
 
@@ -525,17 +542,14 @@ render();
 editor.focus();
 
 // Pick up anything another device wrote while this one was closed.
-if (padSync.isOn) void padSync.sync();
+if (padSync.isUnlocked) void padSync.sync();
 
 /*
- * Arriving on a shared pad link. The key is dropped from the address bar
- * straight away: it is half of what opens the pad, and it does not belong in
- * a bookmark, a screenshot or a referrer.
+ * On a pad URL that has never been opened here, ask for the password before
+ * anything else. The root never reaches this: a plain load is always local.
  */
-const linkedPad = padKeyFromLocation(location.hash);
-if (linkedPad !== null) {
-  history.replaceState(null, "", location.pathname + location.search);
-  if (!padSync.isOn) syncPanel.openForPad(linkedPad, () => editor.focus());
+if (activePadId !== null && !padSync.isUnlocked) {
+  syncPanel.open(() => editor.focus());
 }
 
 // Clicking anywhere in the empty space below the document should put the

@@ -114,43 +114,72 @@ describe("snapshots", () => {
   });
 });
 
-describe("sync config", () => {
-  const config = {
-    padKey: "abc123def456ghi789jkl",
+describe("pad credentials", () => {
+  const credentials = {
     salt: "c2FsdA==",
     password: "hunter2",
     lastSynced: { doc: "one", updatedAt: 42 },
   };
 
-  it("is absent until sync is switched on", () => {
-    expect(createStore(fakeBackend()).loadSync()).toBeNull();
+  it("is absent until a pad has been opened", () => {
+    expect(createStore(fakeBackend(), "happy").loadCredentials()).toBeNull();
   });
 
   it("round-trips", () => {
     const backend = fakeBackend();
-    createStore(backend).saveSync(config);
-    expect(createStore(backend).loadSync()).toEqual(config);
+    createStore(backend, "happy").saveCredentials(credentials);
+    expect(createStore(backend, "happy").loadCredentials()).toEqual(credentials);
   });
 
-  it("clears on disconnect", () => {
+  it("is kept per pad, so one pad's password never opens another", () => {
     const backend = fakeBackend();
-    const store = createStore(backend);
-    store.saveSync(config);
-    store.saveSync(null);
-    expect(store.loadSync()).toBeNull();
+    createStore(backend, "happy").saveCredentials(credentials);
+    expect(createStore(backend, "work").loadCredentials()).toBeNull();
+    expect(createStore(backend, "").loadCredentials()).toBeNull();
   });
 
-  it("discards a config missing anything it needs", () => {
-    for (const bad of ['{"salt":"s"}', "{{{", '{"padKey":"y","salt":"s"}']) {
-      expect(createStore(fakeBackend({ "sprintpad.sync": bad })).loadSync()).toBeNull();
+  it("clears when forgotten", () => {
+    const backend = fakeBackend();
+    const store = createStore(backend, "happy");
+    store.saveCredentials(credentials);
+    store.saveCredentials(null);
+    expect(store.loadCredentials()).toBeNull();
+  });
+
+  it("discards anything missing what it needs", () => {
+    for (const bad of ['{"salt":"s"}', "{{{", '{"password":"p"}']) {
+      expect(createStore(fakeBackend({ "sprintpad.pad@happy": bad }), "happy").loadCredentials())
+        .toBeNull();
     }
   });
 
-  it("drops a malformed sync point rather than the whole config", () => {
+  it("drops a malformed sync point rather than the whole record", () => {
     const backend = fakeBackend({
-      "sprintpad.sync": JSON.stringify({ ...config, lastSynced: { doc: 5 } }),
+      "sprintpad.pad@happy": JSON.stringify({ ...credentials, lastSynced: { doc: 5 } }),
     });
-    expect(createStore(backend).loadSync()).toMatchObject({ lastSynced: null });
+    expect(createStore(backend, "happy").loadCredentials()).toMatchObject({ lastSynced: null });
+  });
+});
+
+describe("scoping", () => {
+  it("keeps each pad's document, history and session apart", () => {
+    const backend = fakeBackend();
+    const root = createStore(backend, "");
+    const happy = createStore(backend, "happy");
+
+    root.saveDoc("local");
+    happy.saveDoc("shared");
+    root.saveSnapshots([{ at: 1, doc: "local before" }]);
+
+    expect(root.loadDoc()).toBe("local");
+    expect(happy.loadDoc()).toBe("shared");
+    expect(happy.loadSnapshots()).toEqual([]);
+  });
+
+  it("shares settings, which are about the person and not the pad", () => {
+    const backend = fakeBackend();
+    createStore(backend, "").saveSettings({ ...DEFAULT_SETTINGS, focusSec: 1500 });
+    expect(createStore(backend, "happy").loadSettings().focusSec).toBe(1500);
   });
 });
 

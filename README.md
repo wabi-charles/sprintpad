@@ -175,16 +175,15 @@ replaced becomes a version of its own.
 turns on an opt-in mode that keeps one pad in step across browsers. Until you
 turn it on, nothing leaves the machine.
 
-Nothing is written until a sync actually succeeds, so a wrong password or an
-unreachable server leaves the browser exactly as it was — local, with no
-password anywhere in sight. Loading the site plainly never asks for one; only
-opening a pad link does.
+**A pad is a URL.** Name one `happy` and it lives at `sprintpad.app/happy`,
+which opens the same list on any device given the password. The root is never a
+pad: `sprintpad.app` on its own is always the local browser list, and it keeps
+its own document, history and session, entirely separate from every pad.
 
-You are not asked for a server: the endpoint is a deployment detail, baked in
-at build time (`VITE_SYNC_ENDPOINT` for self-hosters). Turning sync on gives
-you a link — open it on another device and enter the same password. The pad key
-is stripped from the address bar on arrival, so it does not linger in history
-or a screenshot.
+You are not asked for a server — the endpoint is a deployment detail baked in
+at build time (`VITE_SYNC_ENDPOINT` for self-hosters). Nothing is written until
+a sync actually succeeds, so a wrong password leaves the browser exactly as it
+was rather than wedging later loads in a state that needs repairing.
 
 The password is not a login — it is the encryption key. The pad is encrypted in
 your browser with AES-GCM under a key stretched from that password
@@ -196,6 +195,11 @@ Two consequences, neither of which can be softened:
 
 - **A forgotten password cannot be reset.** Nobody can read the pad without it.
 - Anyone with both the pad name and the password can read your list.
+
+A memorable name is a guessable one, so writes carry a token derived from the
+password alongside the encryption key. Guessing `happy` gets you ciphertext you
+can neither read nor overwrite; the token is useless for reading and is never
+returned by the server. A pad with no token yet belongs to its first writer.
 
 If two devices edit the same pad apart, you are asked which to keep rather than
 one silently winning — and the other side is still in `Restore an earlier
