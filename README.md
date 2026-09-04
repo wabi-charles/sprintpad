@@ -42,8 +42,8 @@ Anything else
 - Indentation is two spaces per level.
 - **Position is priority.** There are no priority fields — move the important
   thing to the top.
-- The line under the cursor is tinted, so it is always clear which task
-  `⌘Enter` and `⌘D` will act on.
+- A thin rule in the left margin marks the line under the cursor, so it is
+  always clear which task `⌘Enter` and `⌘D` will act on.
 
 Paste a list of plain lines and they are simply tasks. Pasting a markdown
 checklist works too: `- [ ]`, `- [x]` and `☐`/`☑` are all understood. To get

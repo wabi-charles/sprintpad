@@ -29,16 +29,19 @@ import "./styles.css";
  * file decides what happens when, and owns the single render loop.
  */
 
+/*
+ * Placeholder, not a tutorial. Every line here is a task, so instructions
+ * become task titles -- and a focus session then displays "press ⌘Enter to
+ * start focusing" as the thing you are working on. The idle panel teaches
+ * ⌘Enter, and ⌘/ teaches the rest.
+ */
 const STARTER_DOC = [
   "# TODAY",
-  "Put the cursor on this line and press ⌘Enter to start focusing",
-  "Press Enter to add a task, ⌘D to complete one",
-  "  Tab indents, ⇧Tab outdents",
-  "⌘↑ and ⌘↓ move a task — position is priority",
+  "Your first task",
+  "Press ⌘/ to see the shortcuts",
   "",
   "# BACKLOG",
-  "Start a line with # to make a header, like these two",
-  "Press ⌘K for everything else",
+  "Something that can wait",
 ].join("\n");
 
 const TICK_MS = 250;

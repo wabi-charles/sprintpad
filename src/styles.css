@@ -8,7 +8,7 @@
   --sp-accent: #b45309;
   --sp-accent-soft: #fdf0e2;
   --sp-border: #e7e2db;
-  --sp-active-line: #f7f5f0;
+  --sp-cursor-rule: #cfc7bc;
   --sp-shadow: 0 12px 40px rgb(28 26 23 / 12%);
   --sp-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --sp-font-doc: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -27,7 +27,7 @@
     --sp-accent: #f0a04b;
     --sp-accent-soft: #2b2216;
     --sp-border: #2c2924;
-    --sp-active-line: #1a1813;
+    --sp-cursor-rule: #4a443c;
     --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
     color-scheme: dark;
   }
@@ -42,7 +42,7 @@
   --sp-accent: #f0a04b;
   --sp-accent-soft: #2b2216;
   --sp-border: #2c2924;
-  --sp-active-line: #1a1813;
+  --sp-cursor-rule: #4a443c;
   --sp-shadow: 0 12px 40px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
@@ -288,17 +288,19 @@ body {
  * say which task ⌘Enter and ⌘D will act on: the task's own checkbox darkens,
  * over a tint barely off the page colour to make the row findable at a glance.
  */
+/*
+ * A rule in the left margin, not a wash across the row: it marks which task
+ * ⌘Enter and ⌘D will act on without competing with the text. An inset shadow
+ * rather than a border so the line's layout is untouched.
+ */
 .sp-line--cursor {
-  background: var(--sp-active-line);
-}
-
-.sp-line--cursor .sp-check:not(.sp-check--on) {
-  color: var(--sp-fg-dim);
+  box-shadow: inset 2px 0 0 0 var(--sp-cursor-rule);
 }
 
 /* A running focus session outranks the cursor's line. */
 .cm-line.sp-line--focused {
   background: var(--sp-accent-soft);
+  box-shadow: -6px 0 0 0 var(--sp-accent-soft), inset 2px 0 0 0 var(--sp-accent);
 }
 
 .sp-line--done {
@@ -319,8 +321,6 @@ body {
 .sp-line--focused {
   position: relative;
   border-radius: 5px;
-  background: var(--sp-accent-soft);
-  box-shadow: -6px 0 0 0 var(--sp-accent-soft), inset 2px 0 0 0 var(--sp-accent);
 }
 
 .cm-content {

@@ -459,3 +459,22 @@ page colour, and the cursor's own checkbox darkens from `--sp-fg-faint` to
 `--sp-fg-dim`. The checkbox carries the meaning -- it is the thing ⌘Enter and
 ⌘D act on -- and the tint only makes the row findable at a glance. Checkbox
 alone was measurably different but too hard to spot while scanning.
+
+
+---
+
+## Addendum 13: a rule in the margin, and a starter document that is not a tutorial
+
+The softened row tint still read as a wash across the text. It is now a 2px
+rule in the left margin -- `box-shadow: inset`, so the line's layout is
+untouched -- which marks the row without competing with the words on it. A
+running focus session keeps its accent rule plus a tint, so the two states stay
+distinguishable at a glance.
+
+Separately: every line in this document is a task, so a starter document made
+of instructions turns those instructions into task titles. Starting a focus
+session then put "Put the cursor on this line and press ⌘Enter to start
+focusing" in the panel as the thing being worked on. The starter document is
+placeholder content now. The idle panel already teaches ⌘Enter, and the
+shortcut sheet added in addendum 9 teaches the rest -- which is what made the
+tutorial text redundant.
