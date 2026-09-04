@@ -180,6 +180,15 @@ which opens the same list on any device given the password. The root is never a
 pad: `sprintpad.app` on its own is always the local browser list, and it keeps
 its own document, history and session, entirely separate from every pad.
 
+`⌘K → Pads` lists the pads this device knows, shows which is open, and is where
+you make and remove them. A new pad starts as a **copy of the list you are
+looking at**, so turning your local list into a synced one takes a name and a
+password and nothing else — and the local list stays where it was.
+
+Removing a pad comes in two strengths, deliberately: **Remove here** forgets it
+on this device only, while **Delete** removes it for every device and needs a
+second click. Renaming is not offered; make a new pad and delete the old one.
+
 You are not asked for a server — the endpoint is a deployment detail baked in
 at build time (`VITE_SYNC_ENDPOINT` for self-hosters). Nothing is written until
 a sync actually succeeds, so a wrong password leaves the browser exactly as it

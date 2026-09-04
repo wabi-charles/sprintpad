@@ -52,6 +52,25 @@ export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
+  /** Every key held, so the pads on this device can be listed. */
+  keys(): string[];
+}
+
+/** Wraps the browser's storage, which has no key list of its own. */
+export function browserStorage(backend: Storage): StorageLike {
+  return {
+    getItem: (key) => backend.getItem(key),
+    setItem: (key, value) => backend.setItem(key, value),
+    removeItem: (key) => backend.removeItem(key),
+    keys: () => {
+      const found: string[] = [];
+      for (let i = 0; i < backend.length; i++) {
+        const key = backend.key(i);
+        if (key !== null) found.push(key);
+      }
+      return found;
+    },
+  };
 }
 
 /**
@@ -102,6 +121,34 @@ function isTimerState(value: unknown): value is TimerState {
     typeof t.accumulatedSec === "number" &&
     typeof t.running === "boolean"
   );
+}
+
+/** The pads this device knows about, by name, in the order they were made. */
+export function knownPadIds(backend: StorageLike): string[] {
+  try {
+    return backend
+      .keys()
+      .filter((key) => key.startsWith("sprintpad.pad@"))
+      .map((key) => key.slice("sprintpad.pad@".length))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Removes every trace of a pad from this device: its credentials and its own
+ * document, history and session. Does not touch the server.
+ */
+export function forgetPadLocally(backend: StorageLike, padId: string): void {
+  const keys = keysFor(padId);
+  for (const key of [keys.doc, keys.docVersion, keys.session, keys.snapshots, keys.pad]) {
+    try {
+      backend.removeItem(key);
+    } catch {
+      // Storage unavailable; nothing to remove.
+    }
+  }
 }
 
 export function createStore(backend: StorageLike, scope = "") {

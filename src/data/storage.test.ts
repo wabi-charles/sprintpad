@@ -12,6 +12,7 @@ function fakeBackend(seed: Record<string, string> = {}): StorageLike & { data: R
     removeItem: (k) => {
       delete data[k];
     },
+    keys: () => Object.keys(data),
   };
 }
 
@@ -256,6 +257,9 @@ describe("unavailable storage", () => {
         throw new Error("quota");
       },
       removeItem: () => {
+        throw new Error("blocked");
+      },
+      keys: () => {
         throw new Error("blocked");
       },
     };

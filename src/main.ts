@@ -4,7 +4,7 @@ import { clearCompleted, focusTargetsIn, toggleHeader, type TaskTarget } from ".
 import { focusAnchorsField, resolveFocusedLines } from "./doc/focusField";
 import { parseLine } from "./doc/grammar";
 import { recordSnapshot, type Snapshot } from "./data/snapshots";
-import { createStore, debounce, type Settings } from "./data/storage";
+import { browserStorage, createStore, debounce, type Settings } from "./data/storage";
 import { createChime } from "./focus/chime";
 import { createNotifier } from "./focus/notifications";
 import { createFocusPanel, type PanelView } from "./focus/panel";
@@ -26,7 +26,8 @@ import { createPadSync } from "./sync/pad";
 import { padIdFromPath } from "./sync/padId";
 import { createShortcutsView } from "./ui/shortcutsView";
 import { createSnapshotsView } from "./ui/snapshotsView";
-import { createSyncView } from "./ui/syncView";
+import { createPadsView } from "./ui/padsView";
+import { createUnlockView } from "./ui/unlockView";
 import { createTheme } from "./ui/theme";
 import "./styles.css";
 
@@ -76,7 +77,8 @@ try {
 } catch {
   // Storage unavailable; nothing to clean up.
 }
-const store = createStore(window.localStorage, activePadId ?? "");
+const backend = browserStorage(window.localStorage);
+const store = createStore(backend, activePadId ?? "");
 let settings: Settings = store.loadSettings();
 let session: FocusSession | null = null;
 let snapshots: Snapshot[] = store.loadSnapshots();
@@ -159,9 +161,18 @@ const padSync = createPadSync({
   // Arriving from another device is an edit like any other: undoable, and the
   // text it replaces becomes a version of its own.
   applyRemote: (doc) => restoreVersion(doc),
-  onStatus: () => syncPanel.refresh(),
+  onStatus: () => {
+    unlockPanel.refresh();
+    padsPanel.refresh();
+  },
 });
-const syncPanel = createSyncView(app, padSync, () => saveState.flush());
+const unlockPanel = createUnlockView(app, padSync, () => saveState.flush());
+const padsPanel = createPadsView(app, {
+  backend,
+  sync: padSync,
+  getDoc: () => editor.getDoc(),
+  onChange: () => saveState.flush(),
+});
 const pushToPad = debounce(() => void padSync.sync(), 1500);
 const palette = createPalette(app, buildCommands);
 
@@ -398,9 +409,9 @@ function buildCommands(): PaletteCommand[] {
       run: () => versions.open(() => editor.focus()),
     },
     {
-      id: "sync",
-      label: activePadId === null ? "Sync across devices (advanced)…" : `Pad “${activePadId}”…`,
-      run: () => syncPanel.open(() => editor.focus()),
+      id: "pads",
+      label: activePadId === null ? "Pads — sync across devices…" : `Pads — on “${activePadId}”…`,
+      run: () => padsPanel.open(() => editor.focus()),
     },
   ];
 }
@@ -409,7 +420,7 @@ function openPalette(): void {
   if (timerSettings.isOpen) timerSettings.close();
   if (shortcuts.isOpen) shortcuts.close();
   if (versions.isOpen) versions.close();
-  if (syncPanel.isOpen) syncPanel.close();
+  if (padsPanel.isOpen) padsPanel.close();
   palette.open(() => editor.focus());
 }
 
@@ -435,6 +446,7 @@ function openShortcuts(): void {
   if (palette.isOpen) palette.close();
   if (timerSettings.isOpen) timerSettings.close();
   if (versions.isOpen) versions.close();
+  if (padsPanel.isOpen) padsPanel.close();
   shortcuts.open(() => editor.focus());
 }
 
@@ -472,7 +484,12 @@ function barButton(shortcut: string, touchLabel: string, run: () => void): HTMLB
 }
 
 const anyDialogOpen = () =>
-  palette.isOpen || timerSettings.isOpen || shortcuts.isOpen || versions.isOpen || syncPanel.isOpen;
+  palette.isOpen ||
+  timerSettings.isOpen ||
+  shortcuts.isOpen ||
+  versions.isOpen ||
+  unlockPanel.isOpen ||
+  padsPanel.isOpen;
 
 // Global keys, live even when the editor does not have focus.
 window.addEventListener("keydown", (event) => {
@@ -486,7 +503,8 @@ window.addEventListener("keydown", (event) => {
     else if (timerSettings.isOpen) timerSettings.close();
     else if (shortcuts.isOpen) shortcuts.close();
     else if (versions.isOpen) versions.close();
-    else syncPanel.close();
+    else if (padsPanel.isOpen) padsPanel.close();
+    else unlockPanel.close();
     return;
   }
 
@@ -549,7 +567,7 @@ if (padSync.isUnlocked) void padSync.sync();
  * anything else. The root never reaches this: a plain load is always local.
  */
 if (activePadId !== null && !padSync.isUnlocked) {
-  syncPanel.open(() => editor.focus());
+  unlockPanel.open(() => editor.focus());
 }
 
 // Clicking anywhere in the empty space below the document should put the

@@ -793,3 +793,36 @@ showed the write token being returned by GET, which would have defeated the
 whole mechanism. It was deploy propagation -- the old version still answering --
 and re-running against the current one confirmed the token is stripped. Worth
 re-running rather than trusting a single pass right after a deploy.
+
+
+---
+
+## Addendum 24: pads are a thing you manage
+
+Creating a pad used to be two steps across two pages -- name at the root, then
+password after a navigation -- and the name field suggested "happy", which is
+not a name anyone wants. Both are gone: `⌘K → Pads` takes a name and a password
+together, with empty fields, and creates the pad in one action.
+
+**A new pad starts as a copy of the list you are looking at.** Copy, not move:
+the list you were on is still there afterwards. Without that, turning a local
+list into a synced one meant retyping it.
+
+The panel is the CRUD the feature was missing -- the pads this device knows,
+which one is open and its sync state, and buttons to open, forget or delete.
+Two strengths of removal, kept visually distinct because only one is
+recoverable:
+
+- **Remove here** drops the credentials and this device's copy.
+- **Delete** removes the pad for every device, behind a second click, and needs
+  the write token, so only someone who knows the password can do it.
+
+Renaming is not offered. It is create-plus-delete underneath, and pretending
+otherwise would hide a destructive step behind an innocuous word.
+
+Two verification notes, both the same lesson. A `DELETE` looked like it had
+failed -- the pad still answered 200 straight afterwards -- and both times it
+was Cloudflare KV's eventual consistency, resolving to 404 within a few
+seconds. Earlier in this build the same pattern hid a real security bug behind
+deploy propagation. Read-after-write against KV needs a second look before it
+means anything.

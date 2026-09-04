@@ -8,7 +8,7 @@
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,PUT,OPTIONS",
+  "access-control-allow-methods": "GET,PUT,DELETE,OPTIONS",
   "access-control-allow-headers": "content-type,x-pad-auth",
   "access-control-max-age": "86400",
 };
@@ -44,6 +44,20 @@ export default {
       if (stored === null) return json({ error: "not found" }, 404);
       // The write token stays here; the client derives its own to compare.
       return json({ payload: stored.payload, updatedAt: stored.updatedAt });
+    }
+
+    if (request.method === "DELETE") {
+      const token = request.headers.get("x-pad-auth");
+      if (!token) return json({ error: "missing write token" }, 401);
+
+      const existing = await env.PADS.get(key, "json");
+      if (existing === null) return json({ ok: true });
+      if (existing.auth && !timingSafeEqual(existing.auth, token)) {
+        return json({ error: "forbidden" }, 403);
+      }
+
+      await env.PADS.delete(key);
+      return json({ ok: true });
     }
 
     if (request.method !== "PUT") return json({ error: "method not allowed" }, 405);

@@ -836,3 +836,124 @@ body {
   gap: 8px;
   margin-top: 14px;
 }
+
+/* -------------------------------------------------------------- pads ----- */
+
+.sp-pads {
+  width: min(30rem, 100% - 32px);
+  max-height: 76vh;
+  overflow: auto;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-bg-elev);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-pads__title,
+.sp-pads__subtitle {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-pads__subtitle {
+  margin-top: 4px;
+}
+
+.sp-pads hr {
+  margin: 16px 0 14px;
+  border: 0;
+  border-top: 1px solid var(--sp-border);
+}
+
+.sp-pads__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sp-border);
+}
+
+.sp-pads__label {
+  min-width: 0;
+}
+
+.sp-pads__name {
+  display: block;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.sp-pads__note {
+  display: block;
+  margin-top: 1px;
+  color: var(--sp-fg-faint);
+  font-size: 12px;
+}
+
+.sp-pads__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: none;
+}
+
+.sp-pads__hint {
+  margin: 0 0 12px;
+  color: var(--sp-fg-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sp-pads__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.sp-pads__field > span {
+  width: 4.5rem;
+  flex: none;
+}
+
+.sp-pads__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sp-border);
+  border-radius: 6px;
+  background: var(--sp-bg);
+  padding: 6px 8px;
+  color: var(--sp-fg);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.sp-pads__input:focus-visible {
+  outline: 2px solid var(--sp-accent);
+  outline-offset: 1px;
+}
+
+.sp-pads__problem {
+  margin: 2px 0 0;
+  min-height: 1.2em;
+  color: var(--sp-accent);
+  font-size: 12px;
+}
+
+/* Deleting a pad removes it for every device; it should not look routine. */
+.sp-btn--danger {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.sp-btn--danger:hover {
+  background: #b3261e;
+  color: #fff;
+}

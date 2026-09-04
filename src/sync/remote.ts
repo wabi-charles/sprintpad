@@ -89,6 +89,25 @@ export function createRemote(endpoint: string) {
       }
       return body.updatedAt;
     },
+
+    /** Deletes the pad for everyone. The write token is the only permission. */
+    async remove(padKey: string, writeToken: string): Promise<void> {
+      let response: Response;
+      try {
+        response = await fetch(`${base}/pad/${encodeURIComponent(padKey)}`, {
+          method: "DELETE",
+          headers: { "x-pad-auth": writeToken },
+        });
+      } catch (error) {
+        throw new SyncUnavailable(error instanceof Error ? error.message : "network error");
+      }
+
+      if (response.status === 403) throw new WriteRefused();
+      // A pad that is already gone is a success, not a problem.
+      if (!response.ok && response.status !== 404) {
+        throw new SyncUnavailable(`server returned ${response.status}`);
+      }
+    },
   };
 }
 
