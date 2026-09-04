@@ -190,7 +190,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         submit.disabled = false;
 
         if (result.kind === "opened" || result.kind === "created") location.assign(padUrl(padId));
-        else if (result.kind === "wrongPassword") note("That password does not open this pad.");
+        else if (result.kind === "wrongPassword") note("Wrong password.");
         else note(result.detail);
       },
       " sp-btn--primary",

@@ -21,7 +21,7 @@ export class SyncUnavailable extends Error {
 /** The pad exists and its write token does not match ours. */
 export class WriteRefused extends Error {
   constructor() {
-    super("This pad belongs to a different password.");
+    super("Wrong password.");
     this.name = "WriteRefused";
   }
 }

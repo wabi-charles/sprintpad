@@ -95,7 +95,7 @@ export async function openExistingPad(
       detail: error instanceof Error ? error.message : "Could not reach the server",
     };
   }
-  if (!stored) return { kind: "failed", detail: "That pad disappeared. Try again." };
+  if (!stored) return { kind: "failed", detail: "That pad is no longer there. Try again." };
 
   try {
     // The pad's own salt, or the password derives a key that opens nothing.

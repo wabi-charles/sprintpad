@@ -107,10 +107,10 @@ export function createPadSync(hooks: PadSyncHooks) {
         await runOnce();
       } while (again);
     } catch (error) {
-      if (error instanceof WrongPassword) setStatus({ kind: "error", detail: "Wrong password" });
-      else if (error instanceof WriteRefused) {
-        // The pad exists and belongs to someone who knows a different password.
-        setStatus({ kind: "error", detail: "That password does not open this pad" });
+      // A wrong password and a pad that answers to a different one are the
+      // same thing from here: you cannot get in, and the reason does not help.
+      if (error instanceof WrongPassword || error instanceof WriteRefused) {
+        setStatus({ kind: "error", detail: "Wrong password" });
       } else if (error instanceof RemoteMovedOn) setStatus({ kind: "conflict" });
       else if (error instanceof SyncUnavailable) setStatus({ kind: "error", detail: error.message });
       else setStatus({ kind: "error", detail: "Sync failed" });

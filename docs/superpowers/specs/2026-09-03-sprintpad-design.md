@@ -894,3 +894,18 @@ stays "Open or create pad" and the submit still does the right thing.
 The check is debounced and ignores its own result if the field has moved on
 since, so a fast typist cannot be shown a verdict about a name they are no
 longer typing.
+
+
+---
+
+## Addendum 28: "Wrong password."
+
+"That password does not open this pad" was the implementation talking. The
+password is the key rather than something checked, so nothing is ever
+*rejected* -- the bytes simply do not decrypt -- and the wording carried that
+distinction to a reader who has no use for it.
+
+It also had two variants: one for a failed decrypt and one for a write the
+server refused, which is the same situation seen from different sides. Both say
+"Wrong password." now. Knowing whether you failed at the encryption or at the
+door does not help you get in.

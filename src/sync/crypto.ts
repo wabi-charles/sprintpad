@@ -118,7 +118,7 @@ export async function encryptPad(key: CryptoKey, salt: string, doc: string): Pro
 
 export class WrongPassword extends Error {
   constructor() {
-    super("That password does not open this pad.");
+    super("Wrong password.");
     this.name = "WrongPassword";
   }
 }
