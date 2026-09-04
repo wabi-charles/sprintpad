@@ -908,6 +908,11 @@ body {
   flex: none;
 }
 
+/* The form's submit needs room whether or not a message is showing. */
+.sp-pads > .sp-pads__actions {
+  margin-top: 14px;
+}
+
 .sp-pads__hint {
   margin: 0 0 12px;
   color: var(--sp-fg-faint);
@@ -945,11 +950,20 @@ body {
   outline-offset: 1px;
 }
 
+/*
+ * Aligned with the inputs it is about, rather than the panel's edge. Collapsed
+ * when empty: reserving a line to avoid layout shift left phantom gaps in the
+ * two places these appear.
+ */
 .sp-pads__problem {
-  margin: 2px 0 0;
-  min-height: 1.2em;
+  margin: 6px 0 0 calc(4.5rem + 10px);
   color: var(--sp-accent);
   font-size: 12px;
+  line-height: 1.4;
+}
+
+.sp-pads__problem:empty {
+  display: none;
 }
 
 /* Deleting a pad removes it for every device; it should not look routine. */

@@ -909,3 +909,21 @@ It also had two variants: one for a failed decrypt and one for a write the
 server refused, which is the same situation seen from different sides. Both say
 "Wrong password." now. Knowing whether you failed at the encryption or at the
 door does not help you get in.
+
+
+---
+
+## Addendum 29: spacing around form messages
+
+Three faults in one small element. The message sat flush against the button
+below it, because the button row had no top margin and was relying on the
+message's own to separate them. It was aligned to the panel's left edge while
+the inputs it describes are indented past a label column. And it reserved a
+line height when empty -- meant to stop the layout jumping when an error
+appears -- which left a phantom gap in both places these lines are used,
+including between the pad list and the heading beneath it.
+
+Now: indented to meet the inputs, collapsed entirely when empty, and the submit
+row carries its own top margin so it has room either way. The layout does shift
+by one line when a message appears, which is the honest trade for not holding
+open a gap that is empty almost always.
