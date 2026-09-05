@@ -72,8 +72,9 @@ function apply(doc: string, at: number, edit: (s: EditorState) => TransactionSpe
 
 `toggleDone`, `changeIndent`, `newTaskLine`, `backspaceAtLineHead` are reused
 verbatim. Ticking a task on a phone and ticking it on a desktop run the same
-function. `@codemirror/state` is ~13KB gzipped and carries no DOM — a cheap
-price for semantics that cannot drift.
+function. `@codemirror/state` carries no DOM, and lands in a chunk shared with
+core, sync and the timer — measured at 29.6KB gzipped all together, against
+88KB for the editor the phone now never downloads.
 
 A second implementation over `string[]` was considered and rejected: it would
 duplicate the grammar's edge cases (marker spans, indent levels, the empty-line

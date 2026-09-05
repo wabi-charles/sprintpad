@@ -1,0 +1,550 @@
+/*
+ * The phone layout.
+ *
+ * Loaded only by the mobile shell, so the desktop pays nothing for it. Colours
+ * and type come from the tokens in styles.css -- this is a different shape for
+ * the same product, not a different product.
+ *
+ * Sizes are in px because that is what a tap target is measured in: 44 for a
+ * row, 28 for the circle, and nothing interactive smaller than that.
+ */
+
+.sp-m {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--sp-bg);
+  color: var(--sp-fg);
+  font-family: var(--sp-font-ui);
+  /* The list scrolls; the page itself never does, or the bars would drift. */
+  overflow: hidden;
+  height: 100dvh;
+}
+
+/* ------------------------------------------------------------------ bar --- */
+
+.sp-m-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  border-bottom: 1px solid var(--sp-border);
+  background: var(--sp-bg);
+}
+
+.sp-m-bar__pad,
+.sp-m-bar__menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--sp-fg);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sp-m-bar__menu {
+  min-width: 44px;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--sp-fg-dim);
+}
+
+.sp-m-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sp-fg-faint);
+}
+
+.sp-m-bar__pad[data-state="synced"] .sp-m-bar__dot {
+  background: #4b9b6e;
+}
+.sp-m-bar__pad[data-state="working"] .sp-m-bar__dot {
+  background: var(--sp-accent);
+}
+.sp-m-bar__pad[data-state="conflict"] .sp-m-bar__dot,
+.sp-m-bar__pad[data-state="error"] .sp-m-bar__dot {
+  background: #c0523f;
+}
+.sp-m-bar__pad[data-state="locked"] .sp-m-bar__dot {
+  background: var(--sp-fg-faint);
+}
+
+/* ----------------------------------------------------------------- list --- */
+
+.sp-m-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Room for whatever the dock is showing, measured in shell.ts. */
+  padding: 4px 0 calc(var(--sp-m-dock, 88px) + 24px);
+}
+
+.sp-m-section__title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  padding: 18px 20px 6px;
+  background: var(--sp-bg);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-m-section__count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.sp-m-section__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ------------------------------------------------------------------ row --- */
+
+.sp-m-row {
+  position: relative;
+  overflow: hidden;
+  background: var(--sp-bg);
+}
+
+.sp-m-row__surface {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 11px 20px;
+  background: var(--sp-bg);
+  /* Only vertical panning is the browser's; horizontal is the swipe. */
+  touch-action: pan-y;
+  transition: transform 160ms ease;
+}
+
+.sp-m-row:not(:last-child) .sp-m-row__surface {
+  box-shadow: inset 0 -1px 0 var(--sp-border);
+}
+
+.sp-m-row[data-depth="1"] .sp-m-row__surface {
+  padding-left: 44px;
+}
+.sp-m-row[data-depth="2"] .sp-m-row__surface {
+  padding-left: 68px;
+}
+.sp-m-row[data-depth="3"] .sp-m-row__surface {
+  padding-left: 92px;
+}
+.sp-m-row[data-depth="4"] .sp-m-row__surface {
+  padding-left: 116px;
+}
+
+.sp-m-row__check {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -2px 0 0;
+  padding: 0;
+  border: 2px solid var(--sp-cursor-rule);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.sp-m-row.is-done .sp-m-row__check {
+  border-color: var(--sp-accent);
+  background: var(--sp-accent);
+  /* A tick drawn rather than typed, so it scales with the circle. */
+  background-image: linear-gradient(45deg, transparent 46%, var(--sp-bg) 46% 54%, transparent 54%),
+    linear-gradient(-45deg, transparent 60%, var(--sp-bg) 60% 68%, transparent 68%);
+}
+
+.sp-m-row__text {
+  flex: 1;
+  min-height: 24px;
+  /* 17px is the iOS body size, and anything under 16 makes Safari zoom. */
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--sp-fg);
+  overflow-wrap: anywhere;
+}
+
+.sp-m-row__text[contenteditable] {
+  outline: none;
+  caret-color: var(--sp-accent);
+}
+
+.sp-m-row.is-done .sp-m-row__text {
+  color: var(--sp-fg-faint);
+  text-decoration: line-through;
+}
+
+.sp-m-row.is-focused .sp-m-row__surface {
+  background: var(--sp-accent-soft);
+  box-shadow: inset 3px 0 0 var(--sp-accent);
+}
+
+/* The swipe actions, revealed from underneath. */
+.sp-m-row__actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+}
+
+.sp-m-row__action {
+  width: 66px;
+  border: 0;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sp-m-row__action--focus {
+  background: var(--sp-accent);
+}
+
+.sp-m-row__action--delete {
+  background: #c0523f;
+}
+
+.sp-m-empty {
+  margin: 48px 20px;
+  text-align: center;
+  color: var(--sp-fg-faint);
+  font-size: 15px;
+}
+
+/* ------------------------------------------------------------- add task --- */
+
+.sp-m-dock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-m-dock[hidden] {
+  display: none !important;
+}
+
+.sp-m-add {
+  margin: 12px 16px calc(env(safe-area-inset-bottom) + 16px);
+  min-height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--sp-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: var(--sp-shadow);
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------- accessory bar --- */
+
+/*
+ * Indent and reordering, pinned above the on-screen keyboard. Its position is
+ * set from the visual viewport in shell.ts, because the keyboard does not
+ * resize the window.
+ */
+/* `display: flex` below would otherwise beat the browser's own [hidden] rule. */
+.sp-m-accessory[hidden],
+.sp-m-add[hidden] {
+  display: none !important;
+}
+
+.sp-m-accessory {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px calc(env(safe-area-inset-bottom) * 0.5 + 6px);
+  border-top: 1px solid var(--sp-border);
+  background: var(--sp-bg-elev);
+}
+
+.sp-m-accessory__button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--sp-fg);
+  font: inherit;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.sp-m-accessory__button:last-child {
+  flex: 0 0 auto;
+  padding: 0 18px;
+  font-weight: 600;
+  color: var(--sp-accent);
+}
+
+.sp-m-accessory__button:active {
+  background: var(--sp-accent-soft);
+}
+
+/* ---------------------------------------------------------------- focus --- */
+
+.sp-m-focus {
+  background: var(--sp-bg-elev);
+  border-top: 1px solid var(--sp-border);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-m-focus__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 20px;
+  border: 0;
+  background: none;
+  color: var(--sp-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-m-focus__barclock {
+  font-family: var(--sp-font-clock);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sp-accent);
+}
+
+.sp-m-focus__bartask {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--sp-fg-dim);
+  font-size: 15px;
+}
+
+.sp-m-focus__sheet {
+  display: none;
+  padding: 8px 20px calc(env(safe-area-inset-bottom) + 20px);
+  text-align: center;
+}
+
+.sp-m-focus.is-expanded .sp-m-focus__sheet {
+  display: block;
+}
+
+.sp-m-focus.is-expanded .sp-m-focus__bar {
+  display: none;
+}
+
+.sp-m-focus__grip {
+  display: block;
+  width: 44px;
+  height: 20px;
+  margin: 0 auto 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.sp-m-focus__grip::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 2px;
+  background: var(--sp-border);
+}
+
+.sp-m-focus__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sp-accent);
+}
+
+.sp-m-focus__task {
+  margin: 6px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sp-m-focus__clock {
+  margin: 10px 0 0;
+  font-family: var(--sp-font-clock);
+  font-size: 44px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.sp-m-focus[data-state="expired"] .sp-m-focus__clock,
+.sp-m-focus[data-state="finished"] .sp-m-focus__clock {
+  font-size: 17px;
+  font-family: var(--sp-font-ui);
+  color: var(--sp-fg-dim);
+}
+
+.sp-m-focus__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sp-m-btn {
+  flex: 1;
+  min-height: 48px;
+  min-width: 96px;
+  padding: 0 16px;
+  border: 1px solid var(--sp-border);
+  border-radius: 12px;
+  background: var(--sp-bg);
+  color: var(--sp-fg);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sp-m-btn--primary {
+  border-color: var(--sp-accent);
+  background: var(--sp-accent);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- sheet --- */
+
+.sp-m-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  background: rgb(28 26 23 / 40%);
+}
+
+.sp-m-sheet[hidden] {
+  display: none !important;
+}
+
+.sp-m-sheet__panel {
+  width: 100%;
+  padding: 8px 12px calc(env(safe-area-inset-bottom) + 12px);
+  border-radius: 18px 18px 0 0;
+  background: var(--sp-bg-elev);
+}
+
+.sp-m-sheet__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--sp-border);
+  background: none;
+  color: var(--sp-fg);
+  font: inherit;
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-m-sheet__detail {
+  color: var(--sp-fg-faint);
+  font-size: 15px;
+}
+
+.sp-m-sheet__cancel {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--sp-bg);
+  color: var(--sp-fg-dim);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ----------------------------------------------------------- text mode --- */
+
+.sp-m-text {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  background: var(--sp-bg);
+}
+
+.sp-m-text[hidden] {
+  display: none !important;
+}
+
+.sp-m-text__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  border-bottom: 1px solid var(--sp-border);
+  font-weight: 600;
+}
+
+.sp-m-text__bar .sp-m-btn {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.sp-m-text__area {
+  flex: 1;
+  width: 100%;
+  padding: 16px;
+  border: 0;
+  background: none;
+  color: var(--sp-fg);
+  font-family: var(--sp-font-doc);
+  /* Never below 16px, or focusing it zooms the page. */
+  font-size: 16px;
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
