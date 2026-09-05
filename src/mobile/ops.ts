@@ -135,8 +135,11 @@ export function moveBlockTo(doc: string, index: number, before: number): Applied
 /**
  * Nest a block one level deeper or shallower, children moving with it.
  *
- * A task cannot be more than one level below the task above it, or the outline
- * would describe a parent that is not there.
+ * Nothing is refused except going left of the margin. There was a rule here
+ * once about not nesting below a task that is not there, which sounded
+ * principled and meant the first task under a header could not be indented at
+ * all -- while Tab on the desktop indented it happily. Two interfaces over one
+ * document do not get to disagree about what the document may contain.
  */
 export function shiftBlockDepth(doc: string, index: number, delta: 1 | -1): Applied {
   const rows = rowsFor(doc);
@@ -144,11 +147,6 @@ export function shiftBlockDepth(doc: string, index: number, delta: 1 | -1): Appl
   const head = block[0];
   if (!head || head.kind === "header") return { doc, caret: head?.from ?? 0 };
   if (delta === -1 && head.depth === 0) return { doc, caret: head.from };
-
-  if (delta === 1) {
-    const above = [...rows.slice(0, head.index)].reverse().find((row) => row.kind === "task");
-    if (!above || head.depth > above.depth) return { doc, caret: head.from };
-  }
 
   const lines = doc.split("\n");
   for (const row of block) {

@@ -103,16 +103,15 @@ describe("what a keyboard has no gesture for", () => {
     expect(nested.split("\n")).toEqual(["# TODAY", "First", "  Second", "    Second's child"]);
   });
 
-  it("will not nest a task that has nothing above to nest under", () => {
-    // "Ship it" is the first task in its section, so there is no parent for it
-    // to belong to and the outline would describe one that is not there.
-    expect(shiftBlockDepth(DOC, rowNamed(DOC, "Ship it").index, 1).doc).toBe(DOC);
-  });
-
-  it("will not nest more than one level below the task above", () => {
-    const once = shiftBlockDepth(DOC, rowNamed(DOC, "Buy milk").index, 1).doc;
-    expect(once).toContain("  Buy milk");
-    expect(shiftBlockDepth(once, rowNamed(once, "Buy milk").index, 1).doc).toBe(once);
+  it("nests the first task under a header, as Tab does at a desk", () => {
+    const { doc } = shiftBlockDepth(DOC, rowNamed(DOC, "Ship it").index, 1);
+    expect(doc.split("\n")).toEqual([
+      "# TODAY",
+      "  Ship it",
+      "    A subtask",
+      "Call the bank",
+      "Buy milk",
+    ]);
   });
 
   it("will not un-nest past the left margin", () => {
@@ -156,13 +155,17 @@ describe("the phone and the editor agree", () => {
     for (const doc of cases) {
       const rows = rowsFor(doc);
       for (const row of rows) {
-        // The phone additionally refuses to nest below a missing parent; where
-        // it does act, it must land in exactly the same place as the editor.
+        // Two things are outside the comparison, and both because the phone
+        // never offers them: a header is drawn as a section title rather than
+        // a row you can grab, and a block with children is the phone's own
+        // idea of what a drag carries. Everything a finger can actually do to
+        // a task must land in exactly the same place as the editor.
+        if (row.kind !== "task") continue;
         if (blockAt(rows, row.index).length !== 1) continue;
         for (const delta of [1, -1] as const) {
-          const mine = shiftBlockDepth(doc, row.index, delta).doc;
-          if (mine === doc) continue;
-          expect(mine).toBe(throughEditor(doc, row.from, (state) => changeIndent(state, delta)));
+          expect(shiftBlockDepth(doc, row.index, delta).doc).toBe(
+            throughEditor(doc, row.from, (state) => changeIndent(state, delta)),
+          );
         }
       }
     }

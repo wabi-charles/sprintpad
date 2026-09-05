@@ -61,6 +61,8 @@ interface Gesture {
   timer: number;
   /** Whether this gesture has actually changed anything yet. */
   moved: boolean;
+  /** Sideways travel not yet spent on a nesting step. */
+  nestOffset: number;
 }
 
 export function createListView(parent: HTMLElement, hooks: ListHooks) {
@@ -198,6 +200,7 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     for (const row of blockAt(rowsFor(hooks.doc()), gesture.index)) {
       root.querySelector(`.sp-m-row[data-from="${row.from}"]`)?.classList.add("is-dragging");
     }
+    paintDrag();
   }
 
   function onRowPointerDown(event: PointerEvent, row: Row): void {
@@ -215,12 +218,29 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
       startY: event.clientY,
       nestFrom: event.clientX,
       offset: 0,
+      nestOffset: 0,
       moved: false,
       timer: onCheck ? 0 : window.setTimeout(beginDrag, HOLD_MS),
     };
     // Captured on the list, not the row: a drag redraws the rows out from
     // under itself, and a capture on a removed element goes with it.
     capture(event.pointerId, true);
+  }
+
+  /**
+   * Let the lifted rows lean towards the finger.
+   *
+   * Nesting happens in whole steps, so without this a drag sideways looks like
+   * nothing at all until it suddenly jumps -- and a step that cannot be taken,
+   * like outdenting at the margin, looks exactly like a broken gesture. Leaning
+   * and springing back is the difference between "no" and "nothing".
+   */
+  function paintDrag(): void {
+    const offset = gesture?.nestOffset ?? 0;
+    for (const item of root.querySelectorAll<HTMLElement>(".sp-m-row.is-dragging")) {
+      const surface = item.querySelector<HTMLElement>(".sp-m-row__surface");
+      if (surface) surface.style.transform = `translateX(${offset}px)`;
+    }
   }
 
   /** Which line the block should land before, given where the finger is. */
@@ -246,12 +266,19 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     const sideways = event.clientX - gesture.nestFrom;
     if (Math.abs(sideways) >= NEST_STEP) {
       gesture.nestFrom = event.clientX;
+      gesture.nestOffset = 0;
       const applied = shiftBlockDepth(hooks.doc(), gesture.index, sideways > 0 ? 1 : -1);
       if (applied.doc !== hooks.doc()) {
         gesture.moved = true;
         hooks.change(applied);
         return;
       }
+      // The step was refused -- outdenting at the margin is the only way left
+      // to reach this. Spring home rather than staying leant on a "no".
+      paintDrag();
+    } else {
+      gesture.nestOffset = sideways;
+      paintDrag();
     }
 
     const target = dropTarget(event.clientY);
@@ -313,6 +340,10 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     }
 
     const wasDrag = gesture.kind === "drag";
+    if (wasDrag) {
+      gesture.nestOffset = 0;
+      paintDrag();
+    }
     // A press that got as far as picking the task up was a drag, whether or
     // not it went anywhere: putting it back down should not then open it for
     // editing. A press that never lifted anything is still an ordinary tap,
@@ -488,6 +519,8 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     }
 
     rendering = false;
+    // The lifted rows were just rebuilt, so their lean has to be put back.
+    if (gesture?.kind === "drag") paintDrag();
     placeCaret();
   }
 

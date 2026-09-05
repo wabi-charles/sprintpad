@@ -233,8 +233,8 @@
 .sp-m-row.is-dragging .sp-m-row__surface {
   background: var(--sp-bg-elev);
   box-shadow: var(--sp-shadow);
-  transform: scale(1.02);
-  transition: none;
+  /* Fast enough to feel attached to the finger, slow enough to spring back. */
+  transition: transform 90ms ease-out;
 }
 
 .sp-m-row.is-dragging .sp-m-row__text {
