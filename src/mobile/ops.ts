@@ -1,6 +1,6 @@
 import { EditorState, type TransactionSpec } from "@codemirror/state";
-import { backspaceAtLineHead, changeIndent, newTaskLine, toggleDone } from "../doc/edits";
-import { parseLine } from "../doc/grammar";
+import { backspaceAtLineHead, newTaskLine, toggleDone } from "../doc/edits";
+import { indentTextFor, parseLine } from "../doc/grammar";
 import { rowsFor, type Row } from "./rows";
 
 /**
@@ -12,9 +12,9 @@ import { rowsFor, type Row } from "./rows";
  * and ticking it at a desk are literally the same code path, which is the only
  * way two interfaces over one document stay honest.
  *
- * The exceptions are the two things a keyboard has no gesture for -- deleting
- * a row outright, and dragging one with its children -- which are written
- * here and tested here.
+ * The exceptions are the things a keyboard has no gesture for -- deleting a
+ * row outright, and dragging one with its children to somewhere else -- which
+ * are written here and tested here.
  */
 
 export interface Applied {
@@ -37,10 +37,6 @@ function apply(
 
 export function toggleDoneAt(doc: string, position: number): Applied {
   return apply(doc, position, toggleDone);
-}
-
-export function indentAt(doc: string, position: number, delta: 1 | -1): Applied {
-  return apply(doc, position, (state) => changeIndent(state, delta));
 }
 
 export function newTaskAt(doc: string, position: number): Applied {
@@ -101,67 +97,67 @@ export function deleteRowAt(doc: string, index: number): Applied {
   return { doc: doc.slice(0, cutFrom) + doc.slice(cutTo), caret: cutFrom };
 }
 
+function offsetOfLine(doc: string, index: number): number {
+  const lines = doc.split("\n");
+  let offset = 0;
+  for (let i = 0; i < index && i < lines.length; i++) offset += lines[i]!.length + 1;
+  return offset;
+}
+
 /**
- * Move a row, with its children, past the sibling above or below it.
+ * Drop a block before a given line, anywhere in the document.
  *
- * Only among siblings: a drag that changed a task's nesting as a side effect
- * of reordering would be a surprise, and indenting is its own gesture. The
- * document comes back unchanged when there is nowhere to go, so a drag at the
- * end of a list is a no-op rather than an error.
+ * Dragging is not nudging. A key moves a task among its siblings because that
+ * is all you can see yourself doing; a finger carries it wherever it is put --
+ * into another section, out from under its parent -- and refusing that mid-drag
+ * would feel broken. Nesting is the horizontal axis of the same gesture, so it
+ * is not decided here.
  */
-export function moveRowAt(doc: string, index: number, delta: 1 | -1): Applied {
+export function moveBlockTo(doc: string, index: number, before: number): Applied {
   const rows = rowsFor(doc);
   const block = blockAt(rows, index);
   if (block.length === 0) return { doc, caret: 0 };
 
-  const first = block[0]!;
-  const last = block[block.length - 1]!;
-  const count = last.index - first.index + 1;
-
-  const target =
-    delta === -1
-      ? siblingBefore(rows, first)
-      : siblingAfter(rows, last, first.depth);
-
-  if (target === null) return { doc, caret: first.from };
+  const start = block[0]!.index;
+  const count = block[block.length - 1]!.index - start + 1;
+  // Landing anywhere inside itself is where it already is.
+  if (before >= start && before <= start + count) return { doc, caret: block[0]!.from };
 
   const lines = doc.split("\n");
-  const moved = lines.splice(first.index, count);
-  // Removing the block shifts anything after it up by its own length.
-  const at = target > first.index ? target - count + 1 : target;
+  const moved = lines.splice(start, count);
+  const at = before > start ? before - count : before;
   lines.splice(at, 0, ...moved);
 
   const next = lines.join("\n");
   return { doc: next, caret: offsetOfLine(next, at) };
 }
 
-/** Index of the head of the sibling block above, or null if there is none. */
-function siblingBefore(rows: readonly Row[], first: Row): number | null {
-  for (let i = first.index - 1; i >= 0; i--) {
-    const row = rows[i]!;
-    if (row.kind === "blank") continue;
-    if (row.kind === "header" || row.depth < first.depth) return null;
-    if (row.depth > first.depth) continue;
-    return i;
+/**
+ * Nest a block one level deeper or shallower, children moving with it.
+ *
+ * A task cannot be more than one level below the task above it, or the outline
+ * would describe a parent that is not there.
+ */
+export function shiftBlockDepth(doc: string, index: number, delta: 1 | -1): Applied {
+  const rows = rowsFor(doc);
+  const block = blockAt(rows, index);
+  const head = block[0];
+  if (!head || head.kind === "header") return { doc, caret: head?.from ?? 0 };
+  if (delta === -1 && head.depth === 0) return { doc, caret: head.from };
+
+  if (delta === 1) {
+    const above = [...rows.slice(0, head.index)].reverse().find((row) => row.kind === "task");
+    if (!above || head.depth > above.depth) return { doc, caret: head.from };
   }
-  return null;
-}
 
-/** Index of the last line of the sibling block below, or null if there is none. */
-function siblingAfter(rows: readonly Row[], last: Row, depth: number): number | null {
-  let i = last.index + 1;
-  while (i < rows.length && rows[i]!.kind === "blank") i++;
-
-  const head = rows[i];
-  if (!head || head.kind === "header" || head.depth !== depth) return null;
-
-  const below = blockAt(rows, i);
-  return below[below.length - 1]!.index;
-}
-
-function offsetOfLine(doc: string, index: number): number {
   const lines = doc.split("\n");
-  let offset = 0;
-  for (let i = 0; i < index && i < lines.length; i++) offset += lines[i]!.length + 1;
-  return offset;
+  for (const row of block) {
+    if (row.kind === "blank") continue;
+    const parsed = parseLine(row.raw);
+    lines[row.index] =
+      indentTextFor(Math.max(0, parsed.indent + delta)) + row.raw.slice(parsed.indentText.length);
+  }
+
+  const next = lines.join("\n");
+  return { doc: next, caret: offsetOfLine(next, head.index) };
 }

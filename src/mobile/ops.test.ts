@@ -4,10 +4,10 @@ import { changeIndent, toggleDone } from "../doc/edits";
 import {
   blockAt,
   deleteRowAt,
-  indentAt,
-  moveRowAt,
+  moveBlockTo,
   newTaskAt,
   setTextAt,
+  shiftBlockDepth,
   toggleDoneAt,
 } from "./ops";
 import { rowsFor } from "./rows";
@@ -27,10 +27,10 @@ describe("acting on a row", () => {
     expect(doc).toContain("  A subtask");
   });
 
-  it("indents and outdents", () => {
-    const indented = indentAt(DOC, rowNamed(DOC, "Call the bank").from, 1).doc;
-    expect(indented).toContain("  Call the bank");
-    expect(indentAt(indented, rowNamed(indented, "Call the bank").from, -1).doc).toBe(DOC);
+  it("nests and un-nests", () => {
+    const nested = shiftBlockDepth(DOC, rowNamed(DOC, "Call the bank").index, 1).doc;
+    expect(nested).toContain("  Call the bank");
+    expect(shiftBlockDepth(nested, rowNamed(nested, "Call the bank").index, -1).doc).toBe(DOC);
   });
 
   it("renames without disturbing the marker or the indent", () => {
@@ -72,8 +72,8 @@ describe("what a keyboard has no gesture for", () => {
     expect(block.map((r) => r.text)).toEqual(["Ship it", "A subtask"]);
   });
 
-  it("moves a task and its children as one", () => {
-    const { doc } = moveRowAt(DOC, rowNamed(DOC, "Call the bank").index, -1);
+  it("carries a task's children along when it is dragged", () => {
+    const { doc } = moveBlockTo(DOC, rowNamed(DOC, "Ship it").index, 4);
     expect(doc.split("\n")).toEqual([
       "# TODAY",
       "Call the bank",
@@ -83,24 +83,40 @@ describe("what a keyboard has no gesture for", () => {
     ]);
   });
 
-  it("moves down past the whole block below", () => {
-    const doc = ["First", "Second", "  Second's child", "Third"].join("\n");
-    const { doc: moved } = moveRowAt(doc, 0, 1);
-    expect(moved.split("\n")).toEqual(["Second", "  Second's child", "First", "Third"]);
+  it("drops a task into another section, which a keyboard would not", () => {
+    const doc = ["# TODAY", "Ship it", "# BACKLOG", "Later"].join("\n");
+    // A finger can carry a task anywhere it is put; refusing mid-drag would
+    // read as the app being broken rather than principled.
+    const moved = moveBlockTo(doc, 3, 1).doc;
+    expect(moved.split("\n")).toEqual(["# TODAY", "Later", "Ship it", "# BACKLOG"]);
   });
 
-  it("will not move a task out of its section or past a header", () => {
-    const first = rowNamed(DOC, "Ship it");
-    expect(moveRowAt(DOC, first.index, -1).doc).toBe(DOC);
+  it("treats a drop inside the block itself as staying put", () => {
+    const index = rowNamed(DOC, "Ship it").index;
+    expect(moveBlockTo(DOC, index, index).doc).toBe(DOC);
+    expect(moveBlockTo(DOC, index, index + 1).doc).toBe(DOC);
   });
 
-  it("will not reorder across nesting levels", () => {
-    // The subtask has no sibling above it, so there is nowhere to go.
-    expect(moveRowAt(DOC, rowNamed(DOC, "A subtask").index, -1).doc).toBe(DOC);
+  it("nests a whole block, children keeping their relative depth", () => {
+    const doc = ["# TODAY", "First", "Second", "  Second's child"].join("\n");
+    const { doc: nested } = shiftBlockDepth(doc, rowNamed(doc, "Second").index, 1);
+    expect(nested.split("\n")).toEqual(["# TODAY", "First", "  Second", "    Second's child"]);
   });
 
-  it("is a no-op at the end of a list", () => {
-    expect(moveRowAt(DOC, rowNamed(DOC, "Buy milk").index, 1).doc).toBe(DOC);
+  it("will not nest a task that has nothing above to nest under", () => {
+    // "Ship it" is the first task in its section, so there is no parent for it
+    // to belong to and the outline would describe one that is not there.
+    expect(shiftBlockDepth(DOC, rowNamed(DOC, "Ship it").index, 1).doc).toBe(DOC);
+  });
+
+  it("will not nest more than one level below the task above", () => {
+    const once = shiftBlockDepth(DOC, rowNamed(DOC, "Buy milk").index, 1).doc;
+    expect(once).toContain("  Buy milk");
+    expect(shiftBlockDepth(once, rowNamed(once, "Buy milk").index, 1).doc).toBe(once);
+  });
+
+  it("will not un-nest past the left margin", () => {
+    expect(shiftBlockDepth(DOC, rowNamed(DOC, "Buy milk").index, -1).doc).toBe(DOC);
   });
 });
 
@@ -136,13 +152,17 @@ describe("the phone and the editor agree", () => {
     }
   });
 
-  it("on indenting and outdenting", () => {
+  it("on nesting a task that has no children", () => {
     for (const doc of cases) {
-      for (const row of rowsFor(doc)) {
+      const rows = rowsFor(doc);
+      for (const row of rows) {
+        // The phone additionally refuses to nest below a missing parent; where
+        // it does act, it must land in exactly the same place as the editor.
+        if (blockAt(rows, row.index).length !== 1) continue;
         for (const delta of [1, -1] as const) {
-          expect(indentAt(doc, row.from, delta).doc).toBe(
-            throughEditor(doc, row.from, (state) => changeIndent(state, delta)),
-          );
+          const mine = shiftBlockDepth(doc, row.index, delta).doc;
+          if (mine === doc) continue;
+          expect(mine).toBe(throughEditor(doc, row.from, (state) => changeIndent(state, delta)));
         }
       }
     }

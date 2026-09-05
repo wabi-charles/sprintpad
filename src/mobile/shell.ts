@@ -223,9 +223,9 @@ export function startMobile(): void {
   // ------------------------------------------------------- editing bar ---
 
   /**
-   * The accessory bar: indent and reordering, attached to the keyboard rather
-   * than floating in the layout. This is the answer to there being no Tab and
-   * no ⌘↑ -- put them where iOS puts everything else that belongs to typing.
+   * The bar above the keyboard. Just a way out of the row you are typing in:
+   * indenting and reordering are drags now, not buttons, because a list you
+   * can pick things up and move is what a touch screen is actually good at.
    */
   const accessory = document.createElement("div");
   accessory.className = "sp-m-accessory";
@@ -244,13 +244,7 @@ export function startMobile(): void {
     return button;
   }
 
-  accessory.append(
-    accessoryButton("⇤", "Outdent", () => list.indent(-1)),
-    accessoryButton("⇥", "Indent", () => list.indent(1)),
-    accessoryButton("↑", "Move up", () => list.move(-1)),
-    accessoryButton("↓", "Move down", () => list.move(1)),
-    accessoryButton("Done", "Stop editing", () => list.stopEditing()),
-  );
+  accessory.append(accessoryButton("Done", "Stop editing", () => list.stopEditing()));
   app.append(accessory);
 
   const addButton = document.createElement("button");
