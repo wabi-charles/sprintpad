@@ -35,8 +35,12 @@ export interface ListHooks {
 /** How far a row slides to show its actions. */
 const SWIPE_OPEN = 132;
 const SWIPE_TRIGGER = 44;
-/** Long enough not to fire while scrolling, short enough not to feel stuck. */
-const HOLD_MS = 300;
+/**
+ * The platform's own long-press, near enough. It was 300ms, which is shorter
+ * than an ordinary deliberate tap -- aiming at a checkbox took longer than
+ * that, so tapping one picked the task up instead of ticking it off.
+ */
+const HOLD_MS = 500;
 /** Sideways travel that nests a task one level deeper. */
 const NEST_STEP = 38;
 /** Movement that ends the argument about which gesture this is. */
@@ -55,6 +59,8 @@ interface Gesture {
   nestFrom: number;
   offset: number;
   timer: number;
+  /** Whether this gesture has actually changed anything yet. */
+  moved: boolean;
 }
 
 export function createListView(parent: HTMLElement, hooks: ListHooks) {
@@ -72,7 +78,8 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
   /**
    * A drag or a swipe still ends with a click on the row it started from, and
    * a task should not open for editing -- or get ticked off -- because it was
-   * moved. Only a tap that never became a gesture counts.
+   * moved. A press that never actually moved anything is still a tap, though,
+   * so this is set on the way out only when something happened.
    */
   let swallowClick = false;
 
@@ -184,12 +191,21 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     closeSwipe();
     root.classList.add("is-reordering");
     surfaceFor(gesture.from)?.style.removeProperty("transform");
-    render();
+
+    // Marked in place rather than redrawn. The finger is still down, and
+    // rebuilding the list here would destroy the element it is resting on --
+    // so the tap that follows would land on nothing.
+    for (const row of blockAt(rowsFor(hooks.doc()), gesture.index)) {
+      root.querySelector(`.sp-m-row[data-from="${row.from}"]`)?.classList.add("is-dragging");
+    }
   }
 
   function onRowPointerDown(event: PointerEvent, row: Row): void {
     if (editingFrom !== null) return;
     closeSwipe();
+    // Ticking a task off is the most common thing anyone does here, and it
+    // must never turn into a drag because the finger lingered.
+    const onCheck = (event.target as HTMLElement | null)?.closest(".sp-m-row__check") !== null;
     gesture = {
       kind: "pending",
       pointerId: event.pointerId,
@@ -199,7 +215,8 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
       startY: event.clientY,
       nestFrom: event.clientX,
       offset: 0,
-      timer: window.setTimeout(beginDrag, HOLD_MS),
+      moved: false,
+      timer: onCheck ? 0 : window.setTimeout(beginDrag, HOLD_MS),
     };
     // Captured on the list, not the row: a drag redraws the rows out from
     // under itself, and a capture on a removed element goes with it.
@@ -231,6 +248,7 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
       gesture.nestFrom = event.clientX;
       const applied = shiftBlockDepth(hooks.doc(), gesture.index, sideways > 0 ? 1 : -1);
       if (applied.doc !== hooks.doc()) {
+        gesture.moved = true;
         hooks.change(applied);
         return;
       }
@@ -248,6 +266,7 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     const applied = moveBlockTo(hooks.doc(), gesture.index, target);
     if (applied.doc === hooks.doc()) return;
     gesture.index = target > start ? target - count : target;
+    gesture.moved = true;
     hooks.change(applied);
   }
 
@@ -276,6 +295,7 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     }
 
     event.preventDefault();
+    gesture.moved = true;
     gesture.offset = Math.max(-SWIPE_OPEN, Math.min(0, dx));
     const surface = surfaceFor(gesture.from);
     if (surface) surface.style.transform = `translateX(${gesture.offset}px)`;
@@ -293,7 +313,11 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     }
 
     const wasDrag = gesture.kind === "drag";
-    if (gesture.kind !== "pending") {
+    // A press that got as far as picking the task up was a drag, whether or
+    // not it went anywhere: putting it back down should not then open it for
+    // editing. A press that never lifted anything is still an ordinary tap,
+    // which is what makes ticking a task off survive a slow finger.
+    if (gesture.moved || gesture.kind === "drag") {
       swallowClick = true;
       window.setTimeout(() => (swallowClick = false), 350);
     }
@@ -305,6 +329,21 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
 
   root.addEventListener("pointerup", endGesture);
   root.addEventListener("pointercancel", endGesture);
+
+  /*
+   * The one thing that actually stops the page scrolling out from under a
+   * drag. `touch-action` is read when the finger lands, so the rule that
+   * arrives with the lift comes too late -- but a touchmove whose default is
+   * prevented never becomes a scroll at all. Hence a non-passive listener,
+   * which is the whole reason this exists alongside the pointer handlers.
+   */
+  root.addEventListener(
+    "touchmove",
+    (event) => {
+      if (gesture?.kind === "drag") event.preventDefault();
+    },
+    { passive: false },
+  );
 
   // --------------------------------------------------------------- render ---
 

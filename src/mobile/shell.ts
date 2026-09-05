@@ -290,7 +290,10 @@ export function startMobile(): void {
     // While typing, the keyboard owns the bottom of the screen; while a
     // session is expanded, the session does.
     addButton.hidden = editing || focusSheet.isExpanded;
-    dock.hidden = editing && !focusSheet.isVisible;
+    // While typing, the keyboard and its bar own the bottom of the screen --
+    // including the standing offer to start a session, which would otherwise
+    // sit behind them.
+    dock.hidden = editing;
     if (editing) followKeyboard();
     listRoom();
   });

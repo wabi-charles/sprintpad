@@ -22,7 +22,11 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
   const barTask = document.createElement("span");
   barTask.className = "sp-m-focus__bartask";
   bar.append(barClock, barTask);
-  bar.addEventListener("click", () => setExpanded(true));
+  bar.addEventListener("click", () => {
+    // Idle, the bar is the way in; running, it is the way back to the sheet.
+    if (idle) actions.start();
+    else setExpanded(true);
+  });
 
   const sheet = document.createElement("div");
   sheet.className = "sp-m-focus__sheet";
@@ -46,6 +50,7 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
   root.append(bar, sheet);
 
   let expanded = true;
+  let idle = false;
 
   function setExpanded(next: boolean): void {
     expanded = next;
@@ -62,10 +67,23 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
   }
 
   function render(view: PanelView): void {
-    // Idle is the list's ordinary state, and a sheet saying "nothing is
-    // running" would be a permanent apology at the bottom of the screen.
+    /*
+     * Starting a session is the point of the product, and on a phone there is
+     * no ⌘Enter to teach -- so idle is not "hide the timer", it is a standing
+     * offer naming the task that would be started. A full sheet saying nothing
+     * is running would be a permanent apology; one line is an invitation.
+     */
+    idle = view.kind === "idle";
     if (view.kind === "idle") {
-      root.hidden = true;
+      if (view.task === null) {
+        root.hidden = true;
+        return;
+      }
+      root.hidden = false;
+      root.dataset.state = "idle";
+      setExpanded(false);
+      barClock.textContent = "▶";
+      barTask.textContent = `Focus on “${view.task}”`;
       return;
     }
 

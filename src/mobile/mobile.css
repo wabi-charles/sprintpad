@@ -135,6 +135,14 @@
   background: var(--sp-bg);
   /* Only vertical panning is the browser's; horizontal is the swipe. */
   touch-action: pan-y;
+  /*
+   * A long press on text is the system's selection gesture, and it will take
+   * the drag away mid-press and put a magnifier over it. The row being edited
+   * puts both back, below.
+   */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   transition: transform 160ms ease;
 }
 
@@ -203,6 +211,9 @@
 .sp-m-row__text[contenteditable] {
   outline: none;
   caret-color: var(--sp-accent);
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .sp-m-row.is-done .sp-m-row__text {
@@ -380,6 +391,17 @@
   font-size: 20px;
   font-variant-numeric: tabular-nums;
   color: var(--sp-accent);
+}
+
+/* The standing offer to start, which is a different thing from a clock. */
+.sp-m-focus[data-state="idle"] .sp-m-focus__barclock {
+  font-family: var(--sp-font-ui);
+  font-size: 15px;
+}
+
+.sp-m-focus[data-state="idle"] .sp-m-focus__bartask {
+  color: var(--sp-fg);
+  font-weight: 600;
 }
 
 .sp-m-focus__bartask {
