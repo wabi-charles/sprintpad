@@ -35,6 +35,9 @@ export interface ListHooks {
 /** How far a row slides to show its actions. */
 const SWIPE_OPEN = 132;
 const SWIPE_TRIGGER = 44;
+/** How far a row will follow a rightward swipe, and what commits the nest. */
+const NEST_OPEN = 80;
+const NEST_TRIGGER = 44;
 /**
  * The platform's own long-press, near enough. It was 300ms, which is shorter
  * than an ordinary deliberate tap -- aiming at a checkbox took longer than
@@ -323,7 +326,9 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
 
     event.preventDefault();
     gesture.moved = true;
-    gesture.offset = Math.max(-SWIPE_OPEN, Math.min(0, dx));
+    // Left uncovers the actions; right nests the task, which is the gesture
+    // most people reach for first and the one that used to do nothing at all.
+    gesture.offset = Math.max(-SWIPE_OPEN, Math.min(NEST_OPEN, dx));
     const surface = surfaceFor(gesture.from);
     if (surface) surface.style.transform = `translateX(${gesture.offset}px)`;
   });
@@ -333,10 +338,19 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     window.clearTimeout(gesture.timer);
 
     if (gesture.kind === "swipe") {
-      const open = gesture.offset < -SWIPE_TRIGGER;
       const surface = surfaceFor(gesture.from);
+      const nest = gesture.offset > NEST_TRIGGER;
+      const open = gesture.offset < -SWIPE_TRIGGER;
+
+      // A nest lets go of the row immediately: the indent it snaps into is the
+      // confirmation, so leaving it held open would be saying it twice.
       if (surface) surface.style.transform = open ? `translateX(${-SWIPE_OPEN}px)` : "";
       surface?.closest(".sp-m-row")?.classList.toggle("is-open", open);
+
+      if (nest) {
+        const row = rowAtFrom(gesture.from);
+        if (row) hooks.change(shiftBlockDepth(hooks.doc(), row.index, 1));
+      }
     }
 
     const wasDrag = gesture.kind === "drag";
@@ -390,6 +404,12 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
       item.classList.add("is-focused");
     }
 
+    // Revealed from the left as the row is pulled right, so the gesture says
+    // what it is going to do before it is committed to.
+    const nestHint = document.createElement("div");
+    nestHint.className = "sp-m-row__nest";
+    nestHint.textContent = "⇥";
+
     // The actions sit underneath and are revealed by the swipe.
     const actions = document.createElement("div");
     actions.className = "sp-m-row__actions";
@@ -442,7 +462,7 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     }
 
     surface.append(circle, text);
-    item.append(actions, surface);
+    item.append(nestHint, actions, surface);
     surface.addEventListener("pointerdown", (event) => onRowPointerDown(event, row));
     return item;
   }

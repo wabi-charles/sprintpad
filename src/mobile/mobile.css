@@ -250,6 +250,19 @@
   transition: transform 160ms ease;
 }
 
+/* The nesting hint, uncovered by pulling the row to the right. */
+.sp-m-row__nest {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  align-items: center;
+  width: 80px;
+  padding-left: 26px;
+  background: var(--sp-accent-soft);
+  color: var(--sp-accent);
+  font-size: 18px;
+}
+
 /* The swipe actions, revealed from underneath. */
 .sp-m-row__actions {
   position: absolute;
