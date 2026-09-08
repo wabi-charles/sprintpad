@@ -1,4 +1,5 @@
 import type { PanelActions, PanelView } from "../focus/panel";
+import { renderLinkedText } from "../ui/linkedText";
 
 /**
  * The timer, as a sheet rather than a panel.
@@ -93,7 +94,9 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
     root.dataset.state = view.kind;
 
     const extra = "extra" in view && view.extra > 0 ? ` +${view.extra}` : "";
-    task.textContent = view.task + extra;
+    renderLinkedText(task, view.task + extra);
+    // The minimised bar is a button, and an anchor inside one is neither valid
+    // nor tappable -- it is ellipsised by CSS instead.
     barTask.textContent = view.task + extra;
 
     label.textContent =

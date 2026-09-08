@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findLinks, hrefFor, shortenUrl } from "./links";
+import { shortenLinksIn, findLinks, hrefFor, shortenUrl } from "./links";
 
 const labels = (text: string) => findLinks(text).map((link) => link.label);
 const hrefs = (text: string) => findLinks(text).map((link) => link.href);
@@ -91,5 +91,23 @@ describe("shortenUrl", () => {
 describe("hrefFor", () => {
   it("leaves an absolute URL alone", () => {
     expect(hrefFor("http://example.com")).toBe("http://example.com");
+  });
+});
+
+describe("shortening the links inside a string", () => {
+  it("leaves text with no link alone", () => {
+    expect(shortenLinksIn("Pay the taxes")).toBe("Pay the taxes");
+  });
+
+  it("replaces a URL with what the editor would draw", () => {
+    expect(shortenLinksIn("Read https://www.example.com/a/b later")).toBe(
+      "Read example.com/a/b later",
+    );
+  });
+
+  it("keeps the text around every link", () => {
+    expect(shortenLinksIn("https://one.example.com then https://two.example.com now")).toBe(
+      "one.example.com then two.example.com now",
+    );
   });
 });

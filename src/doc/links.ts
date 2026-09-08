@@ -85,3 +85,22 @@ export function findLinks(text: string): LinkMatch[] {
   }
   return matches;
 }
+
+/**
+ * The same text with each URL replaced by its short form.
+ *
+ * For places that can only hold a string -- the browser tab, a notification --
+ * where a sixty-character address would crowd out the task it belongs to.
+ */
+export function shortenLinksIn(text: string): string {
+  const links = findLinks(text);
+  if (links.length === 0) return text;
+
+  let out = "";
+  let at = 0;
+  for (const link of links) {
+    out += text.slice(at, link.from) + link.label;
+    at = link.to;
+  }
+  return out + text.slice(at);
+}

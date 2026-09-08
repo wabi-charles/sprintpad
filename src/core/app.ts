@@ -1,3 +1,4 @@
+import { shortenLinksIn } from "../doc/links";
 import { recordSnapshot, type Snapshot } from "../data/snapshots";
 import { browserStorage, createStore, debounce, type Settings } from "../data/storage";
 import { createChime } from "../focus/chime";
@@ -173,7 +174,9 @@ export function createCore(
     const view = sessions.view();
     document.title =
       view.kind === "running" || view.kind === "paused" || view.kind === "break"
-        ? `${view.clock} — ${view.task}`
+        ? // A tab is a few dozen characters wide; a pasted address would fill
+          // it and leave no room for the task it belongs to.
+          `${view.clock} — ${shortenLinksIn(view.task)}`
         : "Sprintpad";
     tickListeners.forEach((listen) => listen());
   }

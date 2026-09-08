@@ -1,3 +1,4 @@
+import { renderLinkedText } from "../ui/linkedText";
 import { parseSessionLength } from "./timer";
 
 /**
@@ -194,10 +195,10 @@ export function createFocusPanel(parent: HTMLElement, actions: PanelActions) {
                   ? "Paused"
                   : "Focus";
 
-      task.textContent =
-        view.kind === "idle"
-          ? (view.task ?? "Select a task to focus on")
-          : view.task;
+      renderLinkedText(
+        task,
+        view.kind === "idle" ? (view.task ?? "Select a task to focus on") : view.task,
+      );
 
       const extra = view.kind === "idle" ? 0 : view.extra;
       alsoCount.textContent = extra > 0 ? `and ${extra} more task${extra === 1 ? "" : "s"}` : "";
