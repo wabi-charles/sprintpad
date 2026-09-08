@@ -1,4 +1,4 @@
-import { RangeSetBuilder, type EditorState } from "@codemirror/state";
+import { RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   ViewPlugin,
@@ -49,13 +49,14 @@ class CheckboxWidget extends WidgetType {
 }
 
 /**
- * A pasted URL is drawn short and clickable, and stays that way.
+ * A pasted URL is drawn short and clickable, always.
  *
- * The real address comes back only when the selection is actually inside it,
- * which is the only moment anyone wants to read or repair one -- the document
- * never held anything but the URL to begin with. Revealing it for the whole
- * line meant a link flicked between short and long every time the caret landed
- * anywhere on that task, which is most of the time you are working.
+ * It used to grow back to the full address whenever the caret was on the line,
+ * then whenever the selection touched it -- so a line with a link in it
+ * changed width as you worked, and selecting the task to move it made the list
+ * jump. There is no condition now: the label is what you see, the title
+ * attribute carries the address for a hover, and the document underneath was
+ * never anything but the URL, so copying a line still copies the whole thing.
  */
 class LinkWidget extends WidgetType {
   constructor(
@@ -84,17 +85,6 @@ class LinkWidget extends WidgetType {
   ignoreEvent(): boolean {
     return true;
   }
-}
-
-/** Marks the raw URL while the selection is inside it, so it still reads as one. */
-const rawLink = Decoration.mark({ class: "sp-link sp-link--raw" });
-
-/**
- * Strictly inside, so a caret resting against either end of a link -- typing
- * on after pasting one, most often -- leaves it short.
- */
-function selectionInside(state: EditorState, from: number, to: number): boolean {
-  return state.selection.ranges.some((range) => range.from < to && range.to > from);
 }
 
 const doneLine = Decoration.line({ class: "sp-line sp-line--done" });
@@ -169,13 +159,7 @@ function build(view: EditorView): DecorationSet {
         const from = line.from + link.from;
         if (from < line.from + parsed.markerTo) continue;
         const to = line.from + link.to;
-        builder.add(
-          from,
-          to,
-          selectionInside(view.state, from, to)
-            ? rawLink
-            : Decoration.replace({ widget: new LinkWidget(link.href, link.label) }),
-        );
+        builder.add(from, to, Decoration.replace({ widget: new LinkWidget(link.href, link.label) }));
       }
 
       pos = line.to + 1;

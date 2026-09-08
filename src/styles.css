@@ -512,11 +512,6 @@ body {
   text-decoration-color: var(--sp-accent);
 }
 
-.sp-link--raw {
-  text-decoration-style: dotted;
-  cursor: text;
-}
-
 /* A done task's strikethrough has to survive its links. */
 .sp-line--done .sp-link {
   color: var(--sp-fg-faint);
