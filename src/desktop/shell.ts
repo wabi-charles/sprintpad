@@ -96,7 +96,9 @@ export function startDesktop(): void {
   padBadge.addEventListener("click", () => {
     // A conflicted pad has one thing worth doing, and this is the only badge
     // there is to reach it from.
-    if (core.sync.status.kind === "conflict") conflictPanel.open(() => editor.focus());
+    const state = core.sync.status.kind;
+    if (state === "conflict") conflictPanel.open(() => editor.focus());
+    else if (state === "locked") unlockPanel.open(() => editor.focus());
     else padsPanel.open(() => editor.focus());
   });
   {
@@ -271,7 +273,7 @@ export function startDesktop(): void {
       else if (shortcuts.isOpen) shortcuts.close();
       else if (versions.isOpen) versions.close();
       else if (padsPanel.isOpen) padsPanel.close();
-      else unlockPanel.close();
+      // unlockPanel is deliberately absent: Escape does not open a locked pad.
       return;
     }
 

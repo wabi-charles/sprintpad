@@ -215,7 +215,9 @@ export function startMobile(): void {
   }
 
   padButton.addEventListener("click", () => {
-    if (core.sync.status.kind === "conflict") conflictPanel.open(() => {});
+    const state = core.sync.status.kind;
+    if (state === "conflict") conflictPanel.open(() => {});
+    else if (state === "locked") unlockPanel.open(() => {});
     else padsPanel.open(() => {});
   });
   menuButton.addEventListener("click", () => menu.open());

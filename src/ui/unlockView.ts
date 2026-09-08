@@ -16,9 +16,12 @@ export function createUnlockView(parent: HTMLElement, sync: PadSync, onOpened: (
   overlay.append(box);
   parent.append(overlay);
 
-  overlay.addEventListener("mousedown", (event) => {
-    if (event.target === overlay) close();
-  });
+  /*
+   * No dismissing this one by tapping past it. Every other overlay is
+   * optional, but a locked pad has nothing behind it worth looking at -- just
+   * a starter document that is not the pad and will never sync. Leaving is
+   * what "Use the local list" is for, and it goes somewhere real.
+   */
 
   let restoreFocus: (() => void) | null = null;
   let releaseTrap: (() => void) | null = null;

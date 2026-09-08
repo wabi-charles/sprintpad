@@ -1,4 +1,4 @@
-import { RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, type EditorState } from "@codemirror/state";
 import {
   Decoration,
   ViewPlugin,
@@ -49,10 +49,13 @@ class CheckboxWidget extends WidgetType {
 }
 
 /**
- * A pasted URL is drawn short and clickable, but only while the caret is
- * elsewhere. Put the caret on the line and the real address comes back, so a
- * link stays as editable as any other run of text -- the document never held
- * anything but the URL to begin with.
+ * A pasted URL is drawn short and clickable, and stays that way.
+ *
+ * The real address comes back only when the selection is actually inside it,
+ * which is the only moment anyone wants to read or repair one -- the document
+ * never held anything but the URL to begin with. Revealing it for the whole
+ * line meant a link flicked between short and long every time the caret landed
+ * anywhere on that task, which is most of the time you are working.
  */
 class LinkWidget extends WidgetType {
   constructor(
@@ -83,8 +86,16 @@ class LinkWidget extends WidgetType {
   }
 }
 
-/** Marks the raw URL while the caret is on its line, so it still reads as one. */
+/** Marks the raw URL while the selection is inside it, so it still reads as one. */
 const rawLink = Decoration.mark({ class: "sp-link sp-link--raw" });
+
+/**
+ * Strictly inside, so a caret resting against either end of a link -- typing
+ * on after pasting one, most often -- leaves it short.
+ */
+function selectionInside(state: EditorState, from: number, to: number): boolean {
+  return state.selection.ranges.some((range) => range.from < to && range.to > from);
+}
 
 const doneLine = Decoration.line({ class: "sp-line sp-line--done" });
 const openLine = Decoration.line({ class: "sp-line sp-line--task" });
@@ -161,7 +172,7 @@ function build(view: EditorView): DecorationSet {
         builder.add(
           from,
           to,
-          atCursor === line.from
+          selectionInside(view.state, from, to)
             ? rawLink
             : Decoration.replace({ widget: new LinkWidget(link.href, link.label) }),
         );
