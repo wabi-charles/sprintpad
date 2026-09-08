@@ -216,7 +216,17 @@ export function createSessionController(deps: LifecycleDeps) {
         const waiting = deps.candidates();
         const first = waiting[0]?.text ?? null;
         const more = waiting.length > 1 ? ` and ${waiting.length - 1} more` : "";
-        return { kind: "idle", task: first === null ? null : `${first}${more}` };
+        // The clock is shown at rest as well as while it runs, so the panel is
+        // the timer rather than a description of one. Counting up has no
+        // length to show, and nothing to edit.
+        const settings = deps.settings();
+        const countdown = settings.mode === "countdown";
+        return {
+          kind: "idle",
+          task: first === null ? null : `${first}${more}`,
+          clock: countdown ? formatClock(settings.focusSec) : "Count up",
+          editable: countdown,
+        };
       }
 
       // The live lines win over the titles captured at the start, so renaming

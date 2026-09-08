@@ -202,15 +202,24 @@ describe("a session whose task disappears", () => {
 
 describe("what the panel shows", () => {
   it("names the task at the cursor when idle, and offers nothing without one", () => {
-    expect(h.controller.view()).toEqual({ kind: "idle", task: "Pay taxes" });
-    expect(harness([]).controller.view()).toEqual({ kind: "idle", task: null });
+    expect(h.controller.view()).toMatchObject({ kind: "idle", task: "Pay taxes" });
+    expect(harness([]).controller.view()).toMatchObject({ kind: "idle", task: null });
   });
 
   it("counts a group in the idle state too", () => {
-    expect(harness(["one", "two", "three"]).controller.view()).toEqual({
+    expect(harness(["one", "two", "three"]).controller.view()).toMatchObject({
       kind: "idle",
       task: "one and 2 more",
     });
+  });
+
+  it("shows the session length at rest, so the panel is the timer", () => {
+    expect(h.controller.view()).toMatchObject({ kind: "idle", clock: "50:00", editable: true });
+  });
+
+  it("has no length to show, or to edit, when counting up", () => {
+    const counting = harness(["Pay taxes"], { mode: "countup" });
+    expect(counting.controller.view()).toMatchObject({ clock: "Count up", editable: false });
   });
 
   it("follows a task renamed mid-session", () => {

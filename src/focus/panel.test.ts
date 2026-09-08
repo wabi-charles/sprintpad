@@ -15,7 +15,16 @@ const actions = {
   keepWorking: vi.fn(),
   takeBreak: vi.fn(),
   endBreak: vi.fn(),
+  setDuration: vi.fn(),
 };
+
+/** The panel shows the configured length at rest, so idle carries a clock. */
+const idle = (task: string | null, clock = "50:00", editable = true): PanelView => ({
+  kind: "idle",
+  task,
+  clock,
+  editable,
+});
 
 let panel: ReturnType<typeof createFocusPanel>;
 let root: HTMLElement;
@@ -35,25 +44,38 @@ const text = (selector: string) => root.querySelector(selector)?.textContent ?? 
 const running: PanelView = { kind: "running", task: "Pay taxes", extra: 0, clock: "49:59", countUp: false };
 
 describe("the idle panel", () => {
-  it("offers no control when the cursor is not on a task", () => {
-    panel.render({ kind: "idle", task: null });
+  it("still offers Start with nothing under the cursor, but greyed", () => {
+    panel.render(idle(null));
     expect(text(".sp-focus__task")).toBe("Select a task to focus on");
-    expect(buttons()).toEqual([]);
+    expect(buttons()).toEqual(["Start"]);
+    expect(root.querySelector<HTMLButtonElement>(".sp-btn")!.disabled).toBe(true);
+  });
+
+  it("shows the configured length at rest, and marks it editable", () => {
+    panel.render(idle("Pay taxes", "25:00"));
+    expect(text(".sp-focus__clock")).toBe("25:00");
+    expect(root.querySelector<HTMLElement>(".sp-focus__clock")!.dataset.editable).toBe("true");
+  });
+
+  it("does not offer to edit a clock that is counting up", () => {
+    panel.render(idle("Pay taxes", "Count up", false));
+    expect(root.querySelector<HTMLElement>(".sp-focus__clock")!.dataset.editable).toBe("false");
   });
 
   it("names the task and offers Start when it is", () => {
-    panel.render({ kind: "idle", task: "Pay taxes" });
+    panel.render(idle("Pay taxes"));
     expect(text(".sp-focus__task")).toBe("Pay taxes");
     expect(buttons()).toEqual(["Start"]);
+    expect(root.querySelector<HTMLButtonElement>(".sp-btn")!.disabled).toBe(false);
   });
 
   it("carries the shortcut on the button rather than replacing it", () => {
-    panel.render({ kind: "idle", task: "Pay taxes" });
+    panel.render(idle("Pay taxes"));
     expect(root.querySelector(".sp-btn")?.getAttribute("title")).toBe("⌘⏎");
   });
 
   it("starts the session when pressed", () => {
-    panel.render({ kind: "idle", task: "Pay taxes" });
+    panel.render(idle("Pay taxes"));
     root.querySelector<HTMLButtonElement>(".sp-btn")!.click();
     expect(actions.start).toHaveBeenCalledOnce();
   });
@@ -98,8 +120,17 @@ describe("re-rendering", () => {
 
   it("swaps the controls when the state changes", () => {
     panel.render(running);
-    panel.render({ kind: "idle", task: null });
-    expect(buttons()).toEqual([]);
+    expect(buttons()).toEqual(["Pause", "Done", "Stop"]);
+    panel.render(idle(null));
+    expect(buttons()).toEqual(["Start"]);
+  });
+
+  it("rebuilds when Start goes from greyed to live, which is a different button", () => {
+    panel.render(idle(null));
+    const greyed = root.querySelector<HTMLButtonElement>(".sp-btn")!;
+    expect(greyed.disabled).toBe(true);
+    panel.render(idle("Pay taxes"));
+    expect(root.querySelector<HTMLButtonElement>(".sp-btn")!.disabled).toBe(false);
   });
 });
 

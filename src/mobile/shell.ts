@@ -165,6 +165,7 @@ export function startMobile(): void {
   const theme = createTheme(core.settings().theme, () => {});
   const focusSheet = createFocusSheet(dock, {
     start: () => core.sessions.startAtCursor(),
+    setDuration: (seconds) => core.updateSettings({ mode: "countdown", focusSec: seconds }),
     togglePause: () => core.sessions.togglePause(),
     done: () => core.sessions.complete(),
     stop: () => core.sessions.stop(),

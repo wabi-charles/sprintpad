@@ -311,6 +311,29 @@ body {
   line-height: 1.1;
 }
 
+/* At rest the clock is a setting you can click, so it has to look like one. */
+.sp-focus__clock[data-editable="true"] {
+  cursor: text;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+
+.sp-focus__clock[data-editable="true"]:hover {
+  background: var(--sp-accent-soft);
+}
+
+.sp-focus__length {
+  width: 4ch;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+
 .sp-focus__clock[data-variant="summary"]:not(:empty) {
   margin-top: 8px;
   font-size: 13px;

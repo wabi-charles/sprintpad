@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseSessionLength,
   elapsedSec,
   formatClock,
   formatDurationLong,
@@ -94,4 +95,41 @@ describe("duration formatting", () => {
     expect(formatDurationLong(3600)).toBe("1 hour");
   });
 
+});
+
+/**
+ * Typed by hand, so the failure that matters is a slip being taken seriously:
+ * a session length of nothing is worse than the one you already had.
+ */
+describe("reading a session length", () => {
+  it("takes a bare number as minutes, which is how anyone says it", () => {
+    expect(parseSessionLength("25")).toBe(25 * 60);
+    expect(parseSessionLength("90")).toBe(90 * 60);
+  });
+
+  it("takes minutes and seconds", () => {
+    expect(parseSessionLength("25:30")).toBe(25 * 60 + 30);
+    expect(parseSessionLength("1:30:00")).toBe(90 * 60);
+  });
+
+  it("ignores the spaces around it", () => {
+    expect(parseSessionLength("  45  ")).toBe(45 * 60);
+  });
+
+  it("refuses anything that is not a time", () => {
+    for (const junk of ["", "   ", "abc", "25m", "-5", "1:2:3:4", "25.5", "1e3"]) {
+      expect(parseSessionLength(junk)).toBeNull();
+    }
+  });
+
+  it("refuses lengths nobody means", () => {
+    expect(parseSessionLength("0")).toBeNull();
+    expect(parseSessionLength("0:30")).toBeNull();
+    expect(parseSessionLength("481")).toBeNull();
+  });
+
+  it("accepts the ends of the range the settings panel allows", () => {
+    expect(parseSessionLength("1")).toBe(60);
+    expect(parseSessionLength("480")).toBe(480 * 60);
+  });
 });

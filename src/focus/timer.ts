@@ -68,3 +68,30 @@ export function formatDurationLong(totalSec: number): string {
   return rest === 0 ? plural(hours, "hour") : `${plural(hours, "hour")} ${plural(rest, "minute")}`;
 }
 
+
+/** The range a session length may be set to, in seconds. */
+export const MIN_SESSION_SEC = 60;
+export const MAX_SESSION_SEC = 8 * 60 * 60;
+
+/**
+ * A session length typed by hand: "25", "25:00" or "1:30:00".
+ *
+ * A bare number is minutes, because nobody sets a focus timer in seconds.
+ * Anything that is not a time at all comes back null, so a slip leaves the
+ * timer as it was rather than setting it to nothing.
+ */
+export function parseSessionLength(text: string): number | null {
+  const parts = text.trim().split(":");
+  if (parts.length > 3 || !parts.every((part) => /^\d{1,3}$/.test(part))) return null;
+
+  const numbers = parts.map(Number);
+  const seconds =
+    numbers.length === 1
+      ? numbers[0]! * 60
+      : numbers.length === 2
+        ? numbers[0]! * 60 + numbers[1]!
+        : numbers[0]! * 3600 + numbers[1]! * 60 + numbers[2]!;
+
+  if (seconds < MIN_SESSION_SEC || seconds > MAX_SESSION_SEC) return null;
+  return seconds;
+}

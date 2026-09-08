@@ -115,6 +115,7 @@ export function startDesktop(): void {
 
   const panel = createFocusPanel(focusHost, {
     start: () => core.sessions.startAtCursor(),
+    setDuration: (seconds) => core.updateSettings({ mode: "countdown", focusSec: seconds }),
     togglePause: () => core.sessions.togglePause(),
     done: () => core.sessions.complete(),
     stop: () => core.sessions.stop(),
