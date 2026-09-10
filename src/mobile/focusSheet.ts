@@ -1,4 +1,5 @@
 import type { PanelActions, PanelView } from "../focus/panel";
+import { shortenLinksIn } from "../doc/links";
 import { renderLinkedText } from "../ui/linkedText";
 
 /**
@@ -84,7 +85,8 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
       root.dataset.state = "idle";
       setExpanded(false);
       barClock.textContent = "▶";
-      barTask.textContent = `Focus on “${view.task}”`;
+      // A button cannot hold an anchor, so the bar shortens the text itself.
+      barTask.textContent = `Focus on “${shortenLinksIn(view.task)}”`;
       return;
     }
 
@@ -97,7 +99,7 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
     renderLinkedText(task, view.task + extra);
     // The minimised bar is a button, and an anchor inside one is neither valid
     // nor tappable -- it is ellipsised by CSS instead.
-    barTask.textContent = view.task + extra;
+    barTask.textContent = shortenLinksIn(view.task) + extra;
 
     label.textContent =
       view.kind === "running"

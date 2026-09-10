@@ -1,3 +1,5 @@
+import { shortenLinksIn } from "../doc/links";
+import { renderLinkedText } from "../ui/linkedText";
 import { rowsFor, sectionsFor, openCount, type Row } from "./rows";
 import {
   backspaceAt,
@@ -440,9 +442,11 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
 
     const text = document.createElement("div");
     text.className = "sp-m-row__text";
-    text.textContent = row.text;
 
     if (editingFrom === row.from) {
+      // Editing shows the line as it really is. A shortened link is a picture
+      // of the text, and you cannot type into a picture.
+      text.textContent = row.text;
       text.contentEditable = "true";
       text.spellcheck = true;
       text.setAttribute("enterkeyhint", "next");
@@ -455,8 +459,12 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
         if (editingFrom === row.from) stopEditing();
       });
     } else {
-      text.addEventListener("click", () => {
+      renderLinkedText(text, row.text);
+      text.addEventListener("click", (event) => {
         if (consumedByGesture()) return;
+        // Tapping the link opens it; tapping the words around it edits the
+        // task. Which you meant is simply where your finger landed.
+        if ((event.target as HTMLElement | null)?.closest("a") !== null) return;
         edit(row.from, caretFromClick(text));
       });
     }
@@ -514,7 +522,9 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
         const heading = document.createElement("h2");
         heading.className = "sp-m-section__title";
         const label = document.createElement("span");
-        label.textContent = section.header.text;
+        // The editor shortens a link in a header too; a section title is
+        // displayed text like any other.
+        label.textContent = shortenLinksIn(section.header.text);
         const count = document.createElement("span");
         count.className = "sp-m-section__count";
         count.textContent = String(openCount(section));

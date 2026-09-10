@@ -221,6 +221,21 @@
   text-decoration: line-through;
 }
 
+/*
+ * A link is its own tap target inside the row -- the words around it open the
+ * task, the link opens the page -- so it needs to look like one rather than
+ * like the text it sits in.
+ */
+.sp-m-row__text .sp-link {
+  /* The row swallows selection for the drag; a link still needs its tap. */
+  pointer-events: auto;
+}
+
+.sp-m-row.is-done .sp-m-row__text .sp-link {
+  color: var(--sp-fg-faint);
+  text-decoration-color: transparent;
+}
+
 .sp-m-row.is-focused .sp-m-row__surface {
   background: var(--sp-accent-soft);
   box-shadow: inset 3px 0 0 var(--sp-accent);
