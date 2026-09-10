@@ -3,6 +3,7 @@ import { recordSnapshot, type Snapshot } from "../data/snapshots";
 import { browserStorage, createStore, debounce, type Settings } from "../data/storage";
 import { createChime } from "../focus/chime";
 import { createSessionController, type FocusedTask } from "../focus/lifecycle";
+import { createMusic } from "../focus/music";
 import { createNotifier } from "../focus/notifications";
 import { createPadSync, type SyncStatus } from "../sync/pad";
 import { padIdFromPath } from "../sync/padId";
@@ -91,6 +92,7 @@ export function createCore(
 
   const notifier = createNotifier(() => settings.notifications);
   const chime = createChime(() => settings.sound);
+  const music = createMusic(() => settings.musicVolume);
 
   const initialDoc = store.loadDoc() ?? options?.starterDoc ?? STARTER_DOC;
   /** The last text written to storage; the candidate for the next snapshot. */
@@ -169,9 +171,27 @@ export function createCore(
     },
   });
 
+  /** What the player was told to do last, so it is only told once. */
+  let musicWanted = false;
+
+  /**
+   * Music belongs to the session rather than to the app: it starts when you
+   * start, and stops when you stop or take a break. The first start comes from
+   * a click or a keystroke, which is what browsers require before any audio
+   * plays at all -- so a session begun by hand unlocks every later one.
+   */
+  function followSession(kind: string): void {
+    const shouldPlay = kind === "running" && settings.station !== null;
+    if (shouldPlay === musicWanted) return;
+    musicWanted = shouldPlay;
+    if (shouldPlay) music.play(settings.station);
+    else music.stop();
+  }
+
   function tick(): void {
     sessions.tick();
     const view = sessions.view();
+    followSession(view.kind);
     document.title =
       view.kind === "running" || view.kind === "paused" || view.kind === "break"
         ? // A tab is a few dozen characters wide; a pasted address would fill
@@ -190,6 +210,7 @@ export function createCore(
     sync,
     notifier,
     chime,
+    music,
     restoreVersion,
 
     settings: () => settings,
@@ -198,6 +219,7 @@ export function createCore(
     updateSettings(patch: Partial<Settings>): void {
       settings = { ...settings, ...patch };
       store.saveSettings(settings);
+      if (patch.musicVolume !== undefined) music.refreshVolume();
       tick();
     },
 

@@ -148,6 +148,8 @@ export function createFocusSheet(parent: HTMLElement, actions: PanelActions) {
   }
 
   return {
+    /** Where the shell hangs the player, so both shells share one control. */
+    body: sheet,
     render,
     get isVisible(): boolean {
       return !root.hidden;

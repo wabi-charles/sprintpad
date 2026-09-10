@@ -4,6 +4,7 @@ import { createConflictView } from "../ui/conflictView";
 import { createPadsView } from "../ui/padsView";
 import { createSettingsView } from "../ui/settingsView";
 import { createSnapshotsView } from "../ui/snapshotsView";
+import { createMusicBar } from "../ui/musicBar";
 import { createTheme } from "../ui/theme";
 import { createUnlockView } from "../ui/unlockView";
 import type { SyncStatus } from "../sync/pad";
@@ -172,6 +173,16 @@ export function startMobile(): void {
     keepWorking: () => core.sessions.toggleClock(),
     takeBreak: () => core.sessions.takeBreak(),
     endBreak: () => core.sessions.stop(),
+  });
+
+  /*
+   * Inside the sheet rather than the list: music only plays during a session,
+   * so the place to change or silence it is the thing that is running.
+   */
+  createMusicBar(focusSheet.body, {
+    music: core.music,
+    station: () => core.settings().station,
+    choose: (station) => core.updateSettings({ station }),
   });
 
   const timerSettings = createSettingsView(app, core.settings, (patch) =>

@@ -624,3 +624,26 @@
   resize: none;
   outline: none;
 }
+
+/* ---------------------------------------------------------------- music --- */
+
+/* The shared player control, at a size a thumb can actually hit. */
+.sp-m-focus .sp-music {
+  margin-top: 18px;
+  font-size: 14px;
+}
+
+.sp-m-focus .sp-music__toggle {
+  min-width: 44px;
+  height: 44px;
+  font-size: 14px;
+}
+
+.sp-m-focus .sp-music__station {
+  /* Never below 16px, or focusing it zooms the page. */
+  font-size: 16px;
+}
+
+.sp-m-focus .sp-music__note {
+  display: none;
+}

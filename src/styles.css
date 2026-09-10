@@ -355,6 +355,74 @@ body {
   color: var(--sp-fg-dim);
 }
 
+/* ---------------------------------------------------------------- music --- */
+
+/*
+ * One line, and a quiet one. The timer is what the panel is for; this is a
+ * thing you set once and stop looking at.
+ */
+.sp-music {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--sp-fg-faint);
+}
+
+.sp-music__toggle {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--sp-border);
+  border-radius: 999px;
+  background: var(--sp-bg);
+  color: var(--sp-fg-dim);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sp-music__toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sp-music[data-state="playing"] .sp-music__toggle {
+  border-color: var(--sp-accent);
+  color: var(--sp-accent);
+}
+
+.sp-music__station {
+  max-width: 12rem;
+  border: 0;
+  background: none;
+  color: var(--sp-fg-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sp-music__note {
+  overflow: hidden;
+  max-width: 16rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--sp-fg-faint);
+  text-decoration: none;
+}
+
+.sp-music__note[href]:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--sp-link-rule);
+}
+
+.sp-music[data-state="error"] .sp-music__note {
+  color: #c0523f;
+}
+
 .sp-focus__actions {
   display: flex;
   justify-content: center;

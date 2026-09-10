@@ -19,6 +19,10 @@ export interface Settings {
   theme: ThemePreference;
   notifications: boolean;
   sound: boolean;
+  /** Which focus station to play, or null for silence. */
+  station: string | null;
+  /** 0 to 1. */
+  musicVolume: number;
 }
 
 export interface PersistedSession {
@@ -103,6 +107,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   notifications: true,
   sound: true,
+  station: null,
+  musicVolume: 0.5,
 };
 
 const MAX_DURATION_SEC = 8 * 60 * 60;
@@ -213,6 +219,14 @@ export function createStore(backend: StorageLike, scope = "") {
           stored.theme === "light" || stored.theme === "dark" || stored.theme === "system"
             ? stored.theme
             : DEFAULT_SETTINGS.theme,
+        station: typeof stored.station === "string" ? stored.station : DEFAULT_SETTINGS.station,
+        musicVolume:
+          typeof stored.musicVolume === "number" &&
+          Number.isFinite(stored.musicVolume) &&
+          stored.musicVolume >= 0 &&
+          stored.musicVolume <= 1
+            ? stored.musicVolume
+            : DEFAULT_SETTINGS.musicVolume,
         notifications:
           typeof stored.notifications === "boolean"
             ? stored.notifications

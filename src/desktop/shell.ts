@@ -14,6 +14,7 @@ import { createPadsView } from "../ui/padsView";
 import { createTouchBar } from "../ui/touchBar";
 import { createConflictView } from "../ui/conflictView";
 import { createUnlockView } from "../ui/unlockView";
+import { createMusicBar } from "../ui/musicBar";
 import { createTheme } from "../ui/theme";
 
 /**
@@ -122,6 +123,12 @@ export function startDesktop(): void {
     keepWorking: () => core.sessions.toggleClock(),
     takeBreak: () => core.sessions.takeBreak(),
     endBreak: () => core.sessions.stop(),
+  });
+
+  createMusicBar(panel.root, {
+    music: core.music,
+    station: () => core.settings().station,
+    choose: (station) => core.updateSettings({ station }),
   });
 
   const timerSettings = createSettingsView(app, core.settings, (patch) =>
