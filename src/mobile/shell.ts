@@ -185,8 +185,11 @@ export function startMobile(): void {
     choose: (station) => core.updateSettings({ station }),
   });
 
-  const timerSettings = createSettingsView(app, core.settings, (patch) =>
-    core.updateSettings(patch),
+  const timerSettings = createSettingsView(
+    app,
+    core.settings,
+    (patch) => core.updateSettings(patch),
+    false,
   );
   const versions = createSnapshotsView(app, core.snapshots, core.restoreVersion);
   const unlockPanel = createUnlockView(app, core.sync, () => core.flush(), false);

@@ -13,6 +13,7 @@ export function createSettingsView(
   parent: HTMLElement,
   getSettings: () => Settings,
   onChange: (patch: Partial<Settings>) => void,
+  takeFocus = true,
 ) {
   const overlay = document.createElement("div");
   overlay.className = "sp-overlay";
@@ -118,8 +119,13 @@ export function createSettingsView(
       paint();
       overlay.hidden = false;
       releaseTrap = trapFocus(box);
-      focusRow.input.focus();
-      focusRow.input.select();
+      // Only where a keyboard is already there. On a phone this raises the
+      // on-screen one over the sheet, and selects a number you did not come
+      // here to change -- one stray keystroke and the timer is 7 minutes.
+      if (takeFocus) {
+        focusRow.input.focus();
+        focusRow.input.select();
+      }
     },
 
     close,
