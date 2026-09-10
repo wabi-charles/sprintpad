@@ -227,6 +227,17 @@ export function startDesktop(): void {
         label: "Restore an earlier version…",
         run: () => versions.open(() => editor.focus()),
       },
+      /*
+       * The phone's menu offers the desktop layout, so this has to offer the
+       * way back -- otherwise choosing it on a phone is a door that locks
+       * behind you. Reachable there because the bar's ⋯ opens this list where
+       * there is no ⌘K to press.
+       */
+      {
+        id: "layout",
+        label: "Use the mobile layout",
+        run: () => location.assign(`${location.pathname}?ui=mobile`),
+      },
     ];
   }
 

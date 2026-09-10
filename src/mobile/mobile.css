@@ -399,6 +399,12 @@
   box-shadow: var(--sp-shadow);
 }
 
+/* Open, it is a sheet like every other sheet, and shaped like one. */
+.sp-m-focus.is-expanded {
+  border-top: 0;
+  border-radius: 18px 18px 0 0;
+}
+
 .sp-m-focus__bar {
   display: flex;
   align-items: center;
@@ -443,7 +449,7 @@
 
 .sp-m-focus__sheet {
   display: none;
-  padding: 8px 20px calc(env(safe-area-inset-bottom) + 20px);
+  padding: 4px 20px calc(env(safe-area-inset-bottom) + 18px);
   text-align: center;
 }
 
@@ -457,9 +463,9 @@
 
 .sp-m-focus__grip {
   display: block;
-  width: 44px;
-  height: 20px;
-  margin: 0 auto 8px;
+  width: 72px;
+  height: 28px;
+  margin: 0 auto 4px;
   padding: 0;
   border: 0;
   background: none;
@@ -478,26 +484,36 @@
 
 .sp-m-focus__label {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--sp-accent);
 }
 
 .sp-m-focus__task {
-  margin: 6px 0 0;
-  font-size: 20px;
-  font-weight: 600;
+  margin: 8px 0 0;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.35;
+  /* The task is what you are doing; only the clock outranks it. */
+  color: var(--sp-fg);
   overflow-wrap: anywhere;
 }
 
+/*
+ * The clock is the reason the sheet is open, so it is the only thing on it
+ * drawn at size. Thin rather than bold: it is being glanced at, not read.
+ */
 .sp-m-focus__clock {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-family: var(--sp-font-clock);
-  font-size: 44px;
+  font-size: 60px;
+  font-weight: 200;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--sp-fg);
 }
 
 .sp-m-focus[data-state="expired"] .sp-m-focus__clock,
@@ -507,11 +523,28 @@
   color: var(--sp-fg-dim);
 }
 
+/*
+ * Three equal buttons in a row made every choice look like the same choice,
+ * and none of them wide enough to hit confidently. A grid instead: whatever is
+ * primary takes the full width on its own line, and the rest share the line
+ * below. That is the same shape for a running session, an expired one and a
+ * break, without the panel having to know which it is.
+ */
 .sp-m-focus__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.sp-m-focus__buttons .sp-m-btn--primary {
+  order: -1;
+  grid-column: 1 / -1;
+}
+
+/* An only child has nobody to share with. */
+.sp-m-focus__buttons .sp-m-btn:only-child {
+  grid-column: 1 / -1;
 }
 
 .sp-m-btn {
@@ -642,9 +675,16 @@
 
 /* ---------------------------------------------------------------- music --- */
 
-/* The shared player control, at a size a thumb can actually hit. */
+/*
+ * The player is not part of the timer, it just lives beside it -- so it sits
+ * under a rule, left-aligned, at the weight of a setting rather than a control.
+ */
 .sp-m-focus .sp-music {
-  margin-top: 18px;
+  justify-content: flex-start;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sp-border);
   font-size: 14px;
 }
 
@@ -770,8 +810,12 @@
   min-height: 52px;
 }
 
-/* A default checkbox is about 13px, which is a quarter of a fingertip. */
-[data-layout="mobile"] .sp-settings__check {
+/*
+ * A default checkbox is about 13px, which is a quarter of a fingertip. The
+ * class is on the label wrapping the whole row, not on the box -- sizing that
+ * squeezed the row to 22px wide and clipped its text off the screen.
+ */
+[data-layout="mobile"] .sp-settings__check input {
   width: 22px;
   height: 22px;
   accent-color: var(--sp-accent);
@@ -780,4 +824,57 @@
 [data-layout="mobile"] .sp-park {
   /* Typing lands here, so it must clear the keyboard rather than hide behind. */
   padding-bottom: 20px;
+}
+
+/* ------------------------------------------------------------- settings --- */
+
+/*
+ * The same four controls, laid out the way a phone lays out settings: one row
+ * each, the name on the left, the thing you change on the right, a rule
+ * between. On a desktop these are a tight little form you read at a glance --
+ * at arm's length on glass they need to be a list.
+ */
+[data-layout="mobile"] .sp-settings__title {
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+
+[data-layout="mobile"] .sp-settings__row,
+[data-layout="mobile"] .sp-settings__check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  margin: 0;
+  border-bottom: 1px solid var(--sp-border);
+  font-size: 17px;
+}
+
+/* The switch belongs on the right, where a thumb already is. */
+[data-layout="mobile"] .sp-settings__check {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+[data-layout="mobile"] .sp-settings__row > span:first-child {
+  flex: 1;
+  width: auto;
+}
+
+[data-layout="mobile"] .sp-settings__unit {
+  color: var(--sp-fg-faint);
+  font-size: 15px;
+}
+
+[data-layout="mobile"] .sp-settings__input {
+  width: 4.5rem;
+  padding: 8px;
+  text-align: center;
+  font-size: 17px;
+}
+
+/* Nothing to divide from below. */
+[data-layout="mobile"] .sp-settings > :last-child {
+  border-bottom: 0;
 }

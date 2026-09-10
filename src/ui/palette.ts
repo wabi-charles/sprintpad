@@ -148,7 +148,13 @@ export function createPalette(parent: HTMLElement, getCommands: () => PaletteCom
       input.value = "";
       active = 0;
       paint();
-      input.focus();
+      /*
+       * Only where a keyboard already exists. This is the desktop shell, but
+       * it can be running on a phone -- someone who switched layouts -- and
+       * there the palette is the way back. A keyboard rising over the list
+       * would cover the command they came here for.
+       */
+      if (!window.matchMedia("(pointer: coarse)").matches) input.focus();
     },
 
     close,
