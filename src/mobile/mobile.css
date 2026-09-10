@@ -662,3 +662,122 @@
 .sp-m-focus .sp-music__note {
   display: none;
 }
+
+/* ------------------------------------------------------- shared panels --- */
+
+/*
+ * The pad manager, the settings, the versions and the password prompt are the
+ * same forms on both shells -- the same fields, the same rules -- so they are
+ * not rewritten here. What is wrong on a phone is the presentation: a small
+ * box dropped into the middle of the screen, with desktop-sized targets, in a
+ * place a thumb cannot reach.
+ *
+ * So they arrive the way everything else on a phone arrives: up from the
+ * bottom, full width, with a handle and room for a finger. The markup is
+ * untouched, which is the point -- one implementation, two presentations.
+ */
+[data-layout="mobile"] .sp-overlay {
+  align-items: flex-end;
+  padding-top: 0;
+}
+
+[data-layout="mobile"] .sp-pads,
+[data-layout="mobile"] .sp-sync,
+[data-layout="mobile"] .sp-settings,
+[data-layout="mobile"] .sp-versions,
+[data-layout="mobile"] .sp-park,
+[data-layout="mobile"] .sp-palette {
+  width: 100%;
+  max-width: none;
+  max-height: 86dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 18px 18px 0 0;
+  padding: 22px 20px calc(env(safe-area-inset-bottom) + 20px);
+  animation: sp-m-rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-layout="mobile"] .sp-overlay > * {
+    animation: none;
+  }
+}
+
+@keyframes sp-m-rise {
+  from {
+    transform: translateY(14px);
+    opacity: 0.6;
+  }
+}
+
+/* The handle, which is how a sheet says it can be dismissed. */
+[data-layout="mobile"] .sp-pads::before,
+[data-layout="mobile"] .sp-sync::before,
+[data-layout="mobile"] .sp-settings::before,
+[data-layout="mobile"] .sp-versions::before,
+[data-layout="mobile"] .sp-park::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: -8px auto 16px;
+  border-radius: 2px;
+  background: var(--sp-border);
+}
+
+/* Nothing interactive under 44px, and buttons wide enough to hit. */
+[data-layout="mobile"] .sp-btn {
+  min-height: 48px;
+  padding: 0 18px;
+  font-size: 16px;
+}
+
+[data-layout="mobile"] .sp-sync__actions,
+[data-layout="mobile"] .sp-pads > .sp-pads__actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+[data-layout="mobile"] .sp-sync__actions .sp-btn,
+[data-layout="mobile"] .sp-pads > .sp-pads__actions .sp-btn {
+  width: 100%;
+}
+
+[data-layout="mobile"] .sp-pads__row,
+[data-layout="mobile"] .sp-versions__row {
+  min-height: 60px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* A row's own buttons stay beside the name; only the panel's stack. */
+[data-layout="mobile"] .sp-pads__row .sp-btn {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+[data-layout="mobile"] .sp-pads__input,
+[data-layout="mobile"] .sp-sync__input,
+[data-layout="mobile"] .sp-settings__input,
+[data-layout="mobile"] .sp-park__input {
+  min-height: 44px;
+  /* Never below 16px, or focusing it zooms the page. */
+  font-size: 16px;
+}
+
+[data-layout="mobile"] .sp-settings__row {
+  min-height: 52px;
+}
+
+/* A default checkbox is about 13px, which is a quarter of a fingertip. */
+[data-layout="mobile"] .sp-settings__check {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--sp-accent);
+}
+
+[data-layout="mobile"] .sp-park {
+  /* Typing lands here, so it must clear the keyboard rather than hide behind. */
+  padding-bottom: 20px;
+}
