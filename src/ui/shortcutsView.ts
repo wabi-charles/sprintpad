@@ -20,6 +20,7 @@ const GROUPS: Array<{ title: string; keys: Array<[string, string]> }> = [
       ["⇧⌘Space", "Pause, resume, or keep working when time is up"],
       ["⇧⌘⏎", "Done — complete the focused task"],
       ["⇧⌘B", "Take a break"],
+      ["⇧⌘P", "Park a stray thought at the bottom, without losing your place"],
       ["⇧⌘.", "End the session"],
       ["Space / Esc", "The same, while the timer panel has focus"],
     ],

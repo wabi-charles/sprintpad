@@ -355,6 +355,74 @@ body {
   color: var(--sp-fg-dim);
 }
 
+/* ----------------------------------------------------------------- park --- */
+
+.sp-park {
+  width: min(30rem, 100% - 32px);
+  padding: 18px 20px 20px;
+  border-radius: 14px;
+  background: var(--sp-bg-elev);
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-park__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sp-fg-faint);
+}
+
+.sp-park__input {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--sp-border);
+  background: none;
+  color: var(--sp-fg);
+  font-family: var(--sp-font-doc);
+  font-size: 17px;
+  outline: none;
+}
+
+.sp-park__input:focus {
+  border-bottom-color: var(--sp-accent);
+}
+
+.sp-park__hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--sp-fg-faint);
+}
+
+/*
+ * The receipt. You are working, not looking at the list, so it has to say the
+ * thought landed without making you go and check that it did.
+ */
+.sp-parked {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  max-width: min(22rem, calc(100% - 40px));
+  overflow: hidden;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--sp-fg);
+  color: var(--sp-bg);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: var(--sp-shadow);
+}
+
+.sp-parked[hidden] {
+  display: none !important;
+}
+
 /* ---------------------------------------------------------------- music --- */
 
 /*

@@ -4,6 +4,7 @@ import { createEditor, type Editor } from "../doc/editor";
 import { clearCompleted, focusTargetsIn, toggleHeader } from "../doc/edits";
 import { focusAnchorsField, resolveFocusedLines } from "../doc/focusField";
 import { parseLine } from "../doc/grammar";
+import { parkEdit } from "../doc/park";
 import { createFocusPanel } from "../focus/panel";
 import { createPalette, type PaletteCommand } from "../ui/palette";
 import { createSettingsView } from "../ui/settingsView";
@@ -15,6 +16,7 @@ import { createTouchBar } from "../ui/touchBar";
 import { createConflictView } from "../ui/conflictView";
 import { createUnlockView } from "../ui/unlockView";
 import { createMusicBar } from "../ui/musicBar";
+import { createParkView } from "../ui/parkView";
 import { createTheme } from "../ui/theme";
 
 /**
@@ -146,6 +148,16 @@ export function startDesktop(): void {
   });
   const palette = createPalette(app, buildCommands);
 
+  /**
+   * The edit lands past everything else, so the selection maps through it
+   * unchanged -- no cursor to restore, and a running session stays anchored
+   * to the task it was on.
+   */
+  const parkPanel = createParkView(app, (text) => {
+    const edit = parkEdit(editor.getDoc(), text);
+    if (edit) editor.view.dispatch({ changes: edit, userEvent: "input" });
+  });
+
   function showPadStatus(status: SyncStatus): void {
     padBadge.dataset.state = status.kind;
     if (core.padId === null) {
@@ -265,7 +277,8 @@ export function startDesktop(): void {
     shortcuts.isOpen ||
     versions.isOpen ||
     unlockPanel.isOpen ||
-    padsPanel.isOpen;
+    padsPanel.isOpen ||
+    parkPanel.isOpen;
 
   // Global keys, live even when the editor does not have focus.
   window.addEventListener("keydown", (event) => {
@@ -281,6 +294,7 @@ export function startDesktop(): void {
       else if (shortcuts.isOpen) shortcuts.close();
       else if (versions.isOpen) versions.close();
       else if (padsPanel.isOpen) padsPanel.close();
+      else if (parkPanel.isOpen) parkPanel.close();
       // unlockPanel is deliberately absent: Escape does not open a locked pad.
       return;
     }
@@ -293,6 +307,16 @@ export function startDesktop(): void {
     if (mod && event.key === "/") {
       event.preventDefault();
       openShortcuts();
+      return;
+    }
+    /*
+     * Live during a session on purpose, and the one shortcut that does not
+     * touch the session at all: the point is to get a stray thought out of
+     * your head without the timer or the cursor noticing.
+     */
+    if (mod && event.shiftKey && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      if (!parkPanel.isOpen) parkPanel.open(() => editor.focus());
       return;
     }
 
