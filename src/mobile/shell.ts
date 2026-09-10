@@ -189,13 +189,14 @@ export function startMobile(): void {
     core.updateSettings(patch),
   );
   const versions = createSnapshotsView(app, core.snapshots, core.restoreVersion);
-  const unlockPanel = createUnlockView(app, core.sync, () => core.flush());
+  const unlockPanel = createUnlockView(app, core.sync, () => core.flush(), false);
   const conflictPanel = createConflictView(app, core.sync, () => core.flush());
   const padsPanel = createPadsView(app, {
     backend: core.backend,
     sync: core.sync,
     getDoc: () => core.surface.getDoc(),
     onChange: () => core.flush(),
+    takeFocus: false,
   });
 
   const textView = createTextView(

@@ -6,7 +6,12 @@ import type { PadSync } from "../sync/pad";
  * the pad manager: you followed a link to one list, so you are asked for one
  * password and nothing else.
  */
-export function createUnlockView(parent: HTMLElement, sync: PadSync, onOpened: () => void) {
+export function createUnlockView(
+  parent: HTMLElement,
+  sync: PadSync,
+  onOpened: () => void,
+  takeFocus = true,
+) {
   const overlay = document.createElement("div");
   overlay.className = "sp-overlay";
   overlay.hidden = true;
@@ -113,7 +118,9 @@ export function createUnlockView(parent: HTMLElement, sync: PadSync, onOpened: (
       paint();
       overlay.hidden = false;
       releaseTrap = trapFocus(box);
-      box.querySelector("input")?.focus();
+      // See padsView: a keyboard that arrives on its own hides the sheet that
+      // is explaining what this pad is and why it wants a password.
+      if (takeFocus) box.querySelector("input")?.focus();
     },
 
     refresh(): void {

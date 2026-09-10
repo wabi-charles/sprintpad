@@ -17,6 +17,8 @@ export interface PadsViewHooks {
   /** The document as it stands, which seeds a newly created pad. */
   getDoc(): string;
   onChange(): void;
+  /** False where a keyboard would have to be summoned to use it. */
+  takeFocus?: boolean;
 }
 
 export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
@@ -312,7 +314,10 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       paint();
       overlay.hidden = false;
       releaseTrap = trapFocus(box);
-      box.querySelector("input")?.focus();
+      // Only where a keyboard is already there. On a phone this raises the
+      // on-screen one over the sheet that has just arrived, so you cannot read
+      // what you opened before it is covered up.
+      if (hooks.takeFocus !== false) box.querySelector("input")?.focus();
     },
 
     refresh(): void {
