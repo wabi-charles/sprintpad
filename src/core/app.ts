@@ -168,6 +168,9 @@ export function createCore(
     unlockAudio: () => {
       void notifier.request();
       chime.prepare();
+      // Inside the tap or keystroke, which is the only moment iOS allows it.
+      // The music itself starts on the next tick, by which time it would not.
+      if (settings.station !== null) music.unlock();
     },
   });
 

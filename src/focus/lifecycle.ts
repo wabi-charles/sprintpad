@@ -144,8 +144,14 @@ export function createSessionController(deps: LifecycleDeps) {
       if (located.length > 0 && located.every((task) => task.completed)) end(true);
     },
 
+    /*
+     * Every transition someone asks for is a gesture, and a gesture is the
+     * only moment a browser lets audio start -- so resuming gets the same
+     * chance to unlock it that starting does.
+     */
     togglePause(): void {
       change(togglePause);
+      if (session?.phase === "running") deps.unlockAudio();
     },
 
     /** One key for "keep the clock running", whichever phase it is in. */
@@ -157,6 +163,7 @@ export function createSessionController(deps: LifecycleDeps) {
       } else {
         change(togglePause);
       }
+      if (session?.phase === "running") deps.unlockAudio();
     },
 
     takeBreak(): void {

@@ -63,6 +63,13 @@ export function createMusicBar(parent: HTMLElement, hooks: MusicBarHooks): HTMLE
       note.removeAttribute("href");
       return;
     }
+    // Not a failure, and not to be reported as one: the browser is waiting
+    // for a tap, which is a thing the user can do something about.
+    if (state.kind === "blocked") {
+      note.textContent = "Tap ▶ to play";
+      note.removeAttribute("href");
+      return;
+    }
 
     const station = STATIONS.find((s) => s.id === id) ?? null;
     note.textContent = station?.note ?? "";
@@ -71,8 +78,14 @@ export function createMusicBar(parent: HTMLElement, hooks: MusicBarHooks): HTMLE
   }
 
   toggle.addEventListener("click", () => {
-    if (hooks.music.isPlaying) hooks.music.stop();
-    else hooks.music.play(hooks.station());
+    if (hooks.music.isPlaying) {
+      hooks.music.stop();
+      return;
+    }
+    // This click is a gesture, and the only kind of moment a browser lets
+    // audio start -- so the permission is taken now, not after the fetch.
+    hooks.music.unlock();
+    hooks.music.play(hooks.station());
   });
 
   select.addEventListener("change", () => {
@@ -81,7 +94,10 @@ export function createMusicBar(parent: HTMLElement, hooks: MusicBarHooks): HTMLE
     // Changing station while something is playing swaps it straight over;
     // otherwise choosing one is just choosing, not starting.
     if (id === null) hooks.music.stop();
-    else if (hooks.music.isPlaying) hooks.music.play(id);
+    else if (hooks.music.isPlaying) {
+      hooks.music.unlock();
+      hooks.music.play(id);
+    }
     paint(hooks.music.state);
   });
 
