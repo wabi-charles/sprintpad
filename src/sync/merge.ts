@@ -1,3 +1,5 @@
+import { survivingLines } from "../doc/lines";
+
 /**
  * A three-way merge over lines.
  *
@@ -34,39 +36,9 @@ function same(a: readonly string[], b: readonly string[]): boolean {
 
 const isInsertion = (change: Change): boolean => change.start === change.end;
 
-/**
- * Which ancestor lines survive into `side`, as a map of index to index. The
- * plain quadratic table is right here: a task list is hundreds of lines at the
- * very most, and this runs once per conflict rather than per keystroke.
- */
-function survivors(base: readonly string[], side: readonly string[]): Map<number, number> {
-  const width = side.length + 1;
-  const table = new Int32Array((base.length + 1) * width);
-  const at = (i: number, j: number): number => table[i * width + j] ?? 0;
-  for (let i = base.length - 1; i >= 0; i--) {
-    for (let j = side.length - 1; j >= 0; j--) {
-      table[i * width + j] =
-        base[i] === side[j] ? at(i + 1, j + 1) + 1 : Math.max(at(i + 1, j), at(i, j + 1));
-    }
-  }
-
-  const matched = new Map<number, number>();
-  let i = 0;
-  let j = 0;
-  while (i < base.length && j < side.length) {
-    if (base[i] === side[j]) {
-      matched.set(i, j);
-      i++;
-      j++;
-    } else if (at(i + 1, j) >= at(i, j + 1)) i++;
-    else j++;
-  }
-  return matched;
-}
-
 /** What one device did to the ancestor, in the ancestor's line numbers. */
 function changesFrom(base: readonly string[], side: readonly string[]): Change[] {
-  const kept = survivors(base, side);
+  const kept = survivingLines(base, side);
   const changes: Change[] = [];
   let si = 0;
   let bi = 0;

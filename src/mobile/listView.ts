@@ -1,4 +1,5 @@
 import { shortenLinksIn } from "../doc/links";
+import { mapPositions } from "../doc/lines";
 import { renderLinkedText } from "../ui/linkedText";
 import { rowsFor, sectionsFor, openCount, type Row } from "./rows";
 import {
@@ -28,6 +29,8 @@ export interface ListHooks {
   doc(): string;
   /** Apply an edit to the document and redraw. */
   change(applied: Applied): void;
+  /** Record what is being typed into a row, without redrawing under it. */
+  typed(applied: Applied): void;
   startFocus(row: Row): void;
   /** The task positions a running session is on, so they can be marked. */
   focused(): readonly number[];
@@ -447,10 +450,33 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
       // Editing shows the line as it really is. A shortened link is a picture
       // of the text, and you cannot type into a picture.
       text.textContent = row.text;
-      text.contentEditable = "true";
+      // Plain text only: a pasted line arrives as words, not as somebody
+      // else's bold and links. Older engines reject the value outright.
+      try {
+        text.contentEditable = "plaintext-only";
+      } catch {
+        text.contentEditable = "true";
+        text.addEventListener("paste", (event) => {
+          event.preventDefault();
+          const plain = event.clipboardData?.getData("text/plain") ?? "";
+          document.execCommand("insertText", false, plain.replace(/\s*\n\s*/g, " "));
+        });
+      }
       text.spellcheck = true;
       text.setAttribute("enterkeyhint", "next");
       text.addEventListener("keydown", (event) => onEditKey(event, row));
+      /*
+       * Into the document as it is typed, not only on Enter or blur. Until
+       * now the words lived in the field alone, so sync saw an unchanged list
+       * and a poll could pull another device's version straight over them --
+       * and the redraw that followed put the old text back in the field.
+       */
+      text.addEventListener("input", () => {
+        const current = editingFrom === null ? null : rowAtFrom(editingFrom);
+        if (!current) return;
+        const typed = (text.textContent ?? "").replace(/\n/g, " ");
+        if (typed !== current.text) hooks.typed(setTextAt(hooks.doc(), current, typed));
+      });
       text.addEventListener("blur", () => {
         // Redrawing the list removes this node, which blurs it. That is our
         // doing, not the user's, and treating it as "finished editing" would
@@ -584,6 +610,23 @@ export function createListView(parent: HTMLElement, hooks: ListHooks) {
     },
 
     stopEditing,
+
+    /**
+     * Carry the row being edited through a change made from outside. The
+     * list's own edits place `editingFrom` themselves; a pull from another
+     * device does not know it exists.
+     */
+    follow(before: string, after: string): void {
+      if (editingFrom === null) return;
+      const moved = mapPositions(before, after, [editingFrom])[0] ?? null;
+      if (moved === null) {
+        editingFrom = null;
+        caretOffset = null;
+        return;
+      }
+      // Rows are found by where they start, so land on the start of the line.
+      editingFrom = after.lastIndexOf("\n", moved - 1) + 1;
+    },
 
     /** Add a task at the end and open it for typing. */
     addTask(): void {

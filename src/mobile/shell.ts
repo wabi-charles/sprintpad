@@ -1,5 +1,5 @@
 import { createCore, type AppCore, type DocSurface } from "../core/app";
-import { parseLine } from "../doc/grammar";
+import { mapPositions } from "../doc/lines";
 import { createConflictView } from "../ui/conflictView";
 import { createPadsView } from "../ui/padsView";
 import { createSettingsView } from "../ui/settingsView";
@@ -12,7 +12,7 @@ import { createFocusSheet } from "./focusSheet";
 import { createListView } from "./listView";
 import { createMenuSheet, createTextView } from "./menuSheet";
 import { rowsFor, type Row } from "./rows";
-import type { Applied } from "./ops";
+import { toggleDoneAt, type Applied } from "./ops";
 import "./mobile.css";
 
 /**
@@ -81,10 +81,24 @@ export function startMobile(): void {
   const core: AppCore = createCore((hooks): DocSurface => {
     let doc = hooks.initialDoc;
 
-    function set(next: string, notify = true): void {
+    /**
+     * Anchors and the selected row are character offsets into the text, so
+     * every change to the text has to carry them along. The editor gets this
+     * from CodeMirror for free; the phone replaces the document as a string,
+     * and without this a task added above the focused one left the session
+     * pointing at whatever slid into its place -- and Done ticked that.
+     */
+    function follow(next: string): void {
+      if (next === doc) return;
+      anchors = mapPositions(doc, next, anchors).filter((at): at is number => at !== null);
+      if (selected !== null) selected = mapPositions(doc, next, [selected])[0] ?? null;
+    }
+
+    function set(next: string, options?: { render?: boolean }): void {
+      follow(next);
       doc = next;
-      if (notify) hooks.onDocChange(doc);
-      list?.render();
+      hooks.onDocChange(doc);
+      if (options?.render !== false) list?.render();
     }
 
     function tasksAt(positions: readonly number[]): Row[] {
@@ -97,6 +111,10 @@ export function startMobile(): void {
     list = createListView(app, {
       doc: () => doc,
       change: (applied: Applied) => set(applied.doc),
+      // Typing is recorded as it happens, so the document the core syncs and
+      // the session watches is the one on screen -- but not redrawn, which
+      // would rebuild the field under the caret.
+      typed: (applied: Applied) => set(applied.doc, { render: false }),
       startFocus: (row) => {
         selected = row.from;
         core.sessions.start([{ from: row.from, text: row.text, completed: row.done }]);
@@ -107,7 +125,12 @@ export function startMobile(): void {
 
     return {
       getDoc: () => doc,
-      setDoc: (next) => set(next),
+      // From outside -- another device, a restored version, the text view --
+      // so the row being typed into has to be carried along as well.
+      setDoc: (next) => {
+        list.follow(doc, next);
+        set(next);
+      },
       focus: () => {},
 
       /**
@@ -144,12 +167,12 @@ export function startMobile(): void {
       completeAt: (positions) => {
         let next = doc;
         // Back to front, so an earlier edit cannot shift a later position.
+        // Through the same toggle the editor uses, so a session ended here
+        // marks the task exactly as ⌘D would at a desk.
         for (const at of [...positions].sort((a, b) => b - a)) {
           const row = rowsFor(next).find((r) => at >= r.from && at <= r.to);
           if (!row || row.kind !== "task" || row.done) continue;
-          const parsed = parseLine(row.raw);
-          const raw = `${parsed.indentText}[x] ${parsed.text}`;
-          next = next.slice(0, row.from) + raw + next.slice(row.to);
+          next = toggleDoneAt(next, row.from).doc;
         }
         if (next !== doc) set(next);
       },
