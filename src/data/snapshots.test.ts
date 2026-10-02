@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSnapshot, formatAge, recordSnapshot, type Snapshot } from "./snapshots";
+import { describeSnapshot, dropsContent, formatAge, recordSnapshot, type Snapshot } from "./snapshots";
 
 const T0 = 1_700_000_000_000;
 const at = (minutes: number) => T0 + minutes * 60_000;
@@ -66,5 +66,34 @@ describe("formatAge", () => {
 
   it("clamps a clock that ran backwards", () => {
     expect(formatAge(T0, T0 - 5000)).toBe("just now");
+  });
+});
+
+describe("whether a change loses a task", () => {
+  const BEFORE = "# TODAY\nShip it\nCall the bank";
+
+  it("does not count additions", () => {
+    expect(dropsContent(BEFORE, `${BEFORE}\nBuy milk`)).toBe(false);
+  });
+
+  it("does not count ticking, indenting or reordering", () => {
+    expect(dropsContent(BEFORE, "# TODAY\n[x] Ship it\n  Call the bank")).toBe(false);
+    expect(dropsContent(BEFORE, "# TODAY\nCall the bank\nShip it")).toBe(false);
+  });
+
+  it("counts a deleted task", () => {
+    expect(dropsContent(BEFORE, "# TODAY\nShip it")).toBe(true);
+  });
+
+  it("counts a renamed one, since the old name is gone", () => {
+    expect(dropsContent(BEFORE, "# TODAY\nShip it\nCall the bank today")).toBe(true);
+  });
+
+  it("counts one of two identical tasks going", () => {
+    expect(dropsContent("A\nA", "A")).toBe(true);
+  });
+
+  it("counts a list emptied on another device", () => {
+    expect(dropsContent(BEFORE, "")).toBe(true);
   });
 });

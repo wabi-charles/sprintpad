@@ -1,5 +1,5 @@
 import { shortenLinksIn } from "../doc/links";
-import { recordSnapshot, type Snapshot } from "../data/snapshots";
+import { dropsContent, recordSnapshot, type Snapshot } from "../data/snapshots";
 import { browserStorage, createStore, debounce, type Settings } from "../data/storage";
 import { createChime } from "../focus/chime";
 import { createSessionController, type FocusedTask } from "../focus/lifecycle";
@@ -129,8 +129,19 @@ export function createCore(
    * current text becomes a snapshot in its own right -- restoring the wrong
    * version is recoverable too.
    */
-  function restoreVersion(doc: string, options?: { keepCursor?: boolean }): void {
-    const next = recordSnapshot(snapshots, surface.getDoc(), Date.now(), { minGapMs: 0 });
+  function restoreVersion(
+    doc: string,
+    options?: { keepCursor?: boolean; spaced?: boolean },
+  ): void {
+    // A restore the user asked for always keeps what it replaces. `spaced`
+    // gives the ordinary three-minute spacing instead, for changes that merely
+    // arrive -- see applyRemote below.
+    const next = recordSnapshot(
+      snapshots,
+      surface.getDoc(),
+      Date.now(),
+      options?.spaced ? {} : { minGapMs: 0 },
+    );
     if (next !== snapshots) {
       snapshots = next;
       store.saveSnapshots(snapshots);
@@ -142,9 +153,17 @@ export function createCore(
     padId,
     store,
     getDoc: () => surface.getDoc(),
-    // Arriving from another device is an edit like any other: undoable, and
-    // the text it replaces becomes a version of its own.
-    applyRemote: (doc) => restoreVersion(doc, { keepCursor: true }),
+    /*
+     * Arriving from another device is an edit like any other, and the text it
+     * replaces becomes a version of its own -- but not unconditionally. The
+     * history holds twelve, and with two busy devices and a twenty-second poll
+     * a version per arrival filled it in minutes, evicting the hour-old state
+     * it exists to give back. So arrivals that only add or tick are spaced like
+     * typing; one that removes a task, which someone may well want to undo,
+     * is always kept.
+     */
+    applyRemote: (doc) =>
+      restoreVersion(doc, { keepCursor: true, spaced: !dropsContent(surface.getDoc(), doc) }),
     onStatus: (status) => statusListeners.forEach((listen) => listen(status)),
   });
 
@@ -247,12 +266,27 @@ export function createCore(
       sessions.restore(stored);
       if (stored) surface.restoreFocus(stored.anchors, stored.tasks);
 
-      window.addEventListener("beforeunload", () => saveState.flush());
+      /*
+       * Write anything pending the moment the page might go away. beforeunload
+       * alone is not that moment on a phone: iOS rarely fires it, and an app
+       * switched away from can be killed without another chance -- taking the
+       * last few hundred milliseconds of typing with it. Hidden and pagehide
+       * are the events that do fire.
+       */
+      const flushNow = (): void => {
+        saveState.flush();
+        if (sync.isUnlocked) pushToPad.flush();
+      };
+      window.addEventListener("beforeunload", flushNow);
+      window.addEventListener("pagehide", flushNow);
 
       // A paused tab stops ticking; catching up on return is what keeps the
       // wall-clock timer honest.
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) return;
+        if (document.hidden) {
+          flushNow();
+          return;
+        }
         tick();
         if (sync.isUnlocked) void sync.sync();
       });

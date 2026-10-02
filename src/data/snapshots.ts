@@ -40,6 +40,32 @@ export function recordSnapshot(
   return [...list, { at: now, doc }].slice(-limit);
 }
 
+/**
+ * Whether going from `before` to `after` loses any task.
+ *
+ * Decides how a change from another device is remembered. Most arrivals only
+ * add or tick things, and taking a version for each would fill the twelve
+ * slots in minutes when two devices are busy -- evicting the hour-old state
+ * the history exists to give back. An arrival that removes a task, though, is
+ * exactly the kind of change someone will want to undo, so that one is always
+ * kept. Compared by task text, so ticking or indenting is not a loss.
+ */
+export function dropsContent(before: string, after: string): boolean {
+  const remaining = new Map<string, number>();
+  for (const raw of after.split("\n")) {
+    const text = parseLine(raw).text.trim();
+    if (text !== "") remaining.set(text, (remaining.get(text) ?? 0) + 1);
+  }
+  for (const raw of before.split("\n")) {
+    const text = parseLine(raw).text.trim();
+    if (text === "") continue;
+    const left = remaining.get(text) ?? 0;
+    if (left === 0) return true;
+    remaining.set(text, left - 1);
+  }
+  return false;
+}
+
 export interface SnapshotSummary {
   title: string;
   tasks: number;
