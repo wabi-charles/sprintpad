@@ -75,6 +75,26 @@ const baseTheme = EditorView.theme({
   },
 });
 
+/**
+ * Where the caret starts: the end of the first task still open.
+ *
+ * Offset zero is the first header, which is not a task -- so a fresh load
+ * greeted people with a greyed-out Start, a panel saying "Select a task to
+ * focus on", and a ⌘Enter that did nothing until they clicked somewhere. The
+ * first open task is what you would have clicked.
+ */
+export function firstOpenTaskEnd(doc: string): number {
+  let offset = 0;
+  for (const line of doc.split("\n")) {
+    const parsed = parseLine(line);
+    if (parsed.kind === "task" && !parsed.completed && parsed.text.trim() !== "") {
+      return offset + line.length;
+    }
+    offset += line.length + 1;
+  }
+  return 0;
+}
+
 export function createEditor(hooks: EditorHooks) {
   const startFocus = (view: EditorView): boolean => {
     const targets = focusTargetsIn(view.state);
@@ -164,6 +184,7 @@ export function createEditor(hooks: EditorHooks) {
     parent: hooks.parent,
     state: EditorState.create({
       doc: hooks.doc,
+      selection: { anchor: firstOpenTaskEnd(hooks.doc) },
       extensions: [
         history(),
         /*

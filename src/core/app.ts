@@ -220,12 +220,16 @@ export function createCore(
     sessions.tick();
     const view = sessions.view();
     followSession(view.kind);
+    // A tab is a few dozen characters wide; a pasted address would fill it
+    // and leave no room for the task it belongs to.
     document.title =
       view.kind === "running" || view.kind === "paused" || view.kind === "break"
-        ? // A tab is a few dozen characters wide; a pasted address would fill
-          // it and leave no room for the task it belongs to.
-          `${view.clock} — ${shortenLinksIn(view.task)}`
-        : "Sprintpad";
+        ? `${view.clock} — ${shortenLinksIn(view.task)}`
+        : view.kind === "expired"
+          ? // The moment the timer runs out is the moment you are most likely
+            // in another tab -- so this is when the tab must not go quiet.
+            `Time's up — ${shortenLinksIn(view.task)}`
+          : "Sprintpad";
     tickListeners.forEach((listen) => listen());
   }
 

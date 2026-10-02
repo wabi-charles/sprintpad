@@ -6,6 +6,12 @@
   --sp-fg-dim: #6b645c;
   --sp-fg-faint: #a49b91;
   --sp-accent: #b45309;
+  /*
+   * Text on an accent fill. The accent darkens for the light theme and
+   * lightens for the dark one, so one colour of text cannot sit on both:
+   * white on the dark theme's amber is 2.1:1, well under the 4.5 it needs.
+   */
+  --sp-on-accent: #ffffff;
   --sp-accent-soft: #fdf0e2;
   --sp-border: #e7e2db;
   --sp-cursor-rule: #cfc7bc;
@@ -26,6 +32,7 @@
     --sp-fg-dim: #9b938a;
     --sp-fg-faint: #665f57;
     --sp-accent: #f0a04b;
+    --sp-on-accent: #1c1a17;
     --sp-accent-soft: #2b2216;
     --sp-border: #2c2924;
     --sp-cursor-rule: #4a443c;
@@ -42,6 +49,7 @@
   --sp-fg-dim: #9b938a;
   --sp-fg-faint: #665f57;
   --sp-accent: #f0a04b;
+  --sp-on-accent: #1c1a17;
   --sp-accent-soft: #2b2216;
   --sp-border: #2c2924;
   --sp-cursor-rule: #4a443c;
@@ -340,7 +348,15 @@ body {
   color: var(--sp-fg-dim);
 }
 
-.sp-focus[data-kind="paused"] .sp-focus__clock,
+/*
+ * Paused, the clock dims rather than shrinking. It used to drop from 44px to
+ * a 12px footnote -- the panel jumped in height, and the number you most want
+ * while paused is how much time is left.
+ */
+.sp-focus[data-kind="paused"] .sp-focus__clock {
+  color: var(--sp-fg-faint);
+}
+
 .sp-focus[data-kind="break"] .sp-focus__also {
   margin: 3px 0 0;
   font-size: 12px;
@@ -523,22 +539,12 @@ body {
 .sp-btn--primary {
   border-color: var(--sp-accent);
   background: var(--sp-accent);
-  color: #fff;
-}
-
-:root[data-theme="dark"] .sp-btn--primary {
-  color: #1c1a17;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .sp-btn--primary {
-    color: #1c1a17;
-  }
+  color: var(--sp-on-accent);
 }
 
 .sp-btn--primary:hover {
   filter: brightness(1.08);
-  color: #fff;
+  color: var(--sp-on-accent);
 }
 
 .sp-btn:focus-visible {

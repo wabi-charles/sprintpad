@@ -297,6 +297,7 @@
 
 .sp-m-row__action--focus {
   background: var(--sp-accent);
+  color: var(--sp-on-accent);
 }
 
 .sp-m-row__action--delete {
@@ -332,7 +333,7 @@
   border: 0;
   border-radius: 14px;
   background: var(--sp-accent);
-  color: #fff;
+  color: var(--sp-on-accent);
   font: inherit;
   font-size: 17px;
   font-weight: 600;
@@ -565,7 +566,7 @@
 .sp-m-btn--primary {
   border-color: var(--sp-accent);
   background: var(--sp-accent);
-  color: #fff;
+  color: var(--sp-on-accent);
 }
 
 /* ---------------------------------------------------------------- sheet --- */
