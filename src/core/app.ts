@@ -175,6 +175,8 @@ export function createCore(
 
   const pushToPad = debounce(() => void sync.sync(), 1500);
 
+  let askedForNotifications = false;
+
   const sessions = createSessionController({
     now: () => Date.now(),
     settings: () => settings,
@@ -191,7 +193,12 @@ export function createCore(
     notify: (title, body) => notifier.notify(title, body),
     chime: () => chime.play(),
     unlockAudio: () => {
-      void notifier.request();
+      // Once per visit. This runs on resuming as well as starting, and someone
+      // who dismissed the permission prompt should not meet it on every resume.
+      if (!askedForNotifications) {
+        askedForNotifications = true;
+        void notifier.request();
+      }
       chime.prepare();
       // Inside the tap or keystroke, which is the only moment iOS allows it.
       // The music itself starts on the next tick, by which time it would not.
