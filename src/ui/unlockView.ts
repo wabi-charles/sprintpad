@@ -1,4 +1,5 @@
 import { trapFocus } from "./focusTrap";
+import { goLocal } from "../sync/lastPlace";
 import type { PadSync } from "../sync/pad";
 
 /**
@@ -100,7 +101,8 @@ export function createUnlockView(
     back.type = "button";
     back.className = "sp-btn";
     back.textContent = "Use the local list";
-    back.addEventListener("click", () => location.assign("/"));
+    // Chosen on purpose, so it sticks: a reload must not bounce back here.
+    back.addEventListener("click", () => goLocal());
 
     const actions = document.createElement("div");
     actions.className = "sp-sync__actions";

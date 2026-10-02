@@ -1,5 +1,6 @@
 import { trapFocus } from "./focusTrap";
 import { forgetPadLocally, knownPadIds, type StorageLike } from "../data/storage";
+import { goLocal } from "../sync/lastPlace";
 import { deletePadEverywhere, openOrCreatePad, padExists } from "../sync/pads";
 import type { PadSync, SyncStatus } from "../sync/pad";
 import { describePadIdProblem, normalizePadId, padIdProblem, padUrl } from "../sync/padId";
@@ -120,7 +121,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
       row(
         "Local",
         "stays in this browser",
-        here === null ? [] : [button("Open", () => location.assign("/"))],
+        here === null ? [] : [button("Open", () => goLocal(hooks.backend))],
         here === null,
       ),
     );
@@ -138,7 +139,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
               const result = await deletePadEverywhere(hooks.backend, padId);
               confirming = null;
               if (!result.ok) listNote(result.detail ?? "Could not delete the pad");
-              else if (isHere) location.assign("/");
+              else if (isHere) goLocal(hooks.backend);
               else paint();
             },
             " sp-btn--danger",
@@ -152,7 +153,7 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         controls.push(
           button("Remove here", () => {
             forgetPadLocally(hooks.backend, padId);
-            if (isHere) location.assign("/");
+            if (isHere) goLocal(hooks.backend);
             else paint();
           }),
           button("Delete…", () => {

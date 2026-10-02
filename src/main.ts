@@ -1,3 +1,5 @@
+import { browserStorage } from "./data/storage";
+import { placeToResume } from "./sync/lastPlace";
 import "./styles.css";
 
 /**
@@ -54,7 +56,22 @@ if (isLayout(asked)) {
 
 document.documentElement.dataset.layout = layout;
 
-if (layout === "mobile") {
+/*
+ * The root is the local list, and it is also what the installed app opens and
+ * what the bare address loads -- so a fresh entry resumes the pad you were
+ * last on, if it is still open here. Decided before any shell is fetched, so
+ * the local list never flashes up first.
+ */
+let resume: string | null = null;
+try {
+  resume = window.location.pathname === "/" ? placeToResume(browserStorage(window.localStorage)) : null;
+} catch {
+  // Storage unavailable; the root stays the local list.
+}
+
+if (resume !== null) {
+  window.location.replace(`/${resume}${window.location.search}${window.location.hash}`);
+} else if (layout === "mobile") {
   void import("./mobile/shell").then((module) => module.startMobile());
 } else {
   void import("./desktop/shell").then((module) => module.startDesktop());

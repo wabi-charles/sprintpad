@@ -6,6 +6,7 @@ import { createSessionController, type FocusedTask } from "../focus/lifecycle";
 import { createMusic } from "../focus/music";
 import { createNotifier } from "../focus/notifications";
 import { createPadSync, type SyncStatus } from "../sync/pad";
+import { rememberPlace } from "../sync/lastPlace";
 import { padIdFromPath } from "../sync/padId";
 
 /**
@@ -164,7 +165,12 @@ export function createCore(
      */
     applyRemote: (doc) =>
       restoreVersion(doc, { keepCursor: true, spaced: !dropsContent(surface.getDoc(), doc) }),
-    onStatus: (status) => statusListeners.forEach((listen) => listen(status)),
+    onStatus: (status) => {
+      // A pad unlocked just now is where the user is, and where a fresh
+      // entry should bring them back to.
+      if (padId !== null && sync.isUnlocked) rememberPlace(backend, padId);
+      statusListeners.forEach((listen) => listen(status));
+    },
   });
 
   const pushToPad = debounce(() => void sync.sync(), 1500);
@@ -262,6 +268,12 @@ export function createCore(
      * themselves and subscribed, so the first tick has somewhere to land.
      */
     start(): void {
+      // Where the user is, for the next time they open the app. A locked pad
+      // is not somewhere to come back to: resuming it would be a password
+      // prompt, so it changes nothing.
+      if (padId === null) rememberPlace(backend, null);
+      else if (sync.isUnlocked) rememberPlace(backend, padId);
+
       const stored = store.loadSession();
       sessions.restore(stored);
       if (stored) surface.restoreFocus(stored.anchors, stored.tasks);
