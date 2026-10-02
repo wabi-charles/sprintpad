@@ -246,6 +246,7 @@ export function startDesktop(): void {
     if (shortcuts.isOpen) shortcuts.close();
     if (versions.isOpen) versions.close();
     if (padsPanel.isOpen) padsPanel.close();
+    if (conflictPanel.isOpen) conflictPanel.close();
     palette.open(() => editor.focus());
   }
 
@@ -254,6 +255,7 @@ export function startDesktop(): void {
     if (timerSettings.isOpen) timerSettings.close();
     if (versions.isOpen) versions.close();
     if (padsPanel.isOpen) padsPanel.close();
+    if (conflictPanel.isOpen) conflictPanel.close();
     shortcuts.open(() => editor.focus());
   }
 
@@ -289,11 +291,24 @@ export function startDesktop(): void {
     versions.isOpen ||
     unlockPanel.isOpen ||
     padsPanel.isOpen ||
-    parkPanel.isOpen;
+    parkPanel.isOpen ||
+    conflictPanel.isOpen;
 
   // Global keys, live even when the editor does not have focus.
   window.addEventListener("keydown", (event) => {
     const mod = event.metaKey || event.ctrlKey;
+
+    /*
+     * A locked pad is a gate, not a dialog. Nothing behind it is the pad, and
+     * every shortcut below opens something on top of it -- the palette among
+     * them, whose close hands focus straight back to the editor underneath,
+     * so the starter list the gate exists to keep you out of was typeable
+     * after all. Escape is swallowed for the same reason: it opens nothing.
+     */
+    if (unlockPanel.isOpen) {
+      if (event.key === "Escape") event.preventDefault();
+      return;
+    }
 
     if (event.key === "Escape" && anyDialogOpen()) {
       // Handled here rather than on the dialogs themselves: clicking inside
@@ -306,7 +321,8 @@ export function startDesktop(): void {
       else if (versions.isOpen) versions.close();
       else if (padsPanel.isOpen) padsPanel.close();
       else if (parkPanel.isOpen) parkPanel.close();
-      // unlockPanel is deliberately absent: Escape does not open a locked pad.
+      // "Decide later": the conflict stays, and the badge leads back to it.
+      else if (conflictPanel.isOpen) conflictPanel.close();
       return;
     }
 
@@ -327,7 +343,9 @@ export function startDesktop(): void {
      */
     if (mod && event.shiftKey && event.key.toLowerCase() === "p") {
       event.preventDefault();
-      if (!parkPanel.isOpen) parkPanel.open(() => editor.focus());
+      // Not on top of another dialog: closing the park line would hand focus
+      // to the editor behind both of them.
+      if (!anyDialogOpen()) parkPanel.open(() => editor.focus());
       return;
     }
 
