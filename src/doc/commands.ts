@@ -1,6 +1,6 @@
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import type { Command } from "@codemirror/view";
-import { backspaceAtLineHead, changeIndent, newTaskLine, toggleDone, toggleHeader } from "./edits";
+import { backspaceAtLineHead, changeIndent, newTaskLine, toggleDone } from "./edits";
 
 /**
  * Thin adapters that turn the pure edits into CodeMirror commands. Returning
@@ -18,6 +18,5 @@ function command(produce: (state: EditorState) => TransactionSpec | null): Comma
 export const insertTaskLine = command(newTaskLine);
 export const deleteLineHead = command(backspaceAtLineHead);
 export const toggleTaskDone = command(toggleDone);
-export const toggleTaskHeader = command(toggleHeader);
 export const indentTasks = command((state) => changeIndent(state, 1));
 export const outdentTasks = command((state) => changeIndent(state, -1));

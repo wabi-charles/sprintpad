@@ -50,14 +50,6 @@ export function randomSalt(): string {
   return toBase64(crypto.getRandomValues(new Uint8Array(SALT_BYTES)));
 }
 
-/** A key id long enough that pads cannot be found by guessing. */
-export function randomPadKey(): string {
-  return toBase64(crypto.getRandomValues(new Uint8Array(18)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
 export interface PadKeys {
   /** Never leaves the browser. */
   encryption: CryptoKey;

@@ -11,7 +11,7 @@ import type { SyncStatus } from "../sync/pad";
 import { createFocusSheet } from "./focusSheet";
 import { createListView } from "./listView";
 import { createMenuSheet, createTextView } from "./menuSheet";
-import { rowsFor, type Row } from "./rows";
+import { rowAt, rowsFor, type Row } from "./rows";
 import { toggleDoneAt, type Applied } from "./ops";
 import "./mobile.css";
 
@@ -104,8 +104,8 @@ export function startMobile(): void {
     function tasksAt(positions: readonly number[]): Row[] {
       const rows = rowsFor(doc);
       return positions
-        .map((at) => rows.find((row) => at >= row.from && at <= row.to))
-        .filter((row): row is Row => row !== undefined && row.kind === "task");
+        .map((at) => rowAt(rows, at))
+        .filter((row): row is Row => row !== null && row.kind === "task");
     }
 
     list = createListView(app, {

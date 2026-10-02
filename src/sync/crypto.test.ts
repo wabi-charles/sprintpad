@@ -6,7 +6,6 @@ import {
   encryptPad,
   isEncryptedPad,
   fromBase64,
-  randomPadKey,
   randomSalt,
 } from "./crypto";
 
@@ -71,12 +70,6 @@ describe("encrypting a pad", () => {
 });
 
 describe("identifiers", () => {
-  it("mints URL-safe pad keys that do not collide", () => {
-    const keys = new Set(Array.from({ length: 50 }, randomPadKey));
-    expect(keys.size).toBe(50);
-    for (const key of keys) expect(key).toMatch(/^[A-Za-z0-9_-]{24}$/);
-  });
-
   it("mints a fresh salt each time", () => {
     expect(randomSalt()).not.toBe(randomSalt());
   });
