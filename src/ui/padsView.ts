@@ -189,7 +189,12 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
          * password it has, and refusing to let someone type it would lock them
          * out of their own list.
          */
-        if (willCreate !== false) {
+        // Already here: this device holds its password, so there is nothing to
+        // ask for -- the button just goes there.
+        const here = knownPadIds(hooks.backend).includes(padId);
+        if (here) {
+          // Falls through to openOrCreatePad, which goes there and touches nothing.
+        } else if (willCreate !== false) {
           const weak = passwordProblem(pad.password.value);
           if (weak) return note(describePasswordProblem(weak));
         } else if (pad.password.value === "") {
@@ -206,7 +211,9 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
         );
         submit.disabled = false;
 
-        if (result.kind === "opened" || result.kind === "created") location.assign(padUrl(padId));
+        if (result.kind === "opened" || result.kind === "created" || result.kind === "alreadyHere") {
+          location.assign(padUrl(padId));
+        }
         else if (result.kind === "wrongPassword") note("Wrong password.");
         else note(result.detail);
       },
@@ -231,6 +238,13 @@ export function createPadsView(parent: HTMLElement, hooks: PadsViewHooks) {
 
       const padId = normalizePadId(pad.name.value);
       if (padIdProblem(padId) !== null) return;
+
+      if (knownPadIds(hooks.backend).includes(padId)) {
+        willCreate = false;
+        submit.textContent = "Open pad";
+        note("Already on this device — no password needed.");
+        return;
+      }
 
       checking = setTimeout(async () => {
         const exists = await padExists(padId);

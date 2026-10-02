@@ -1,4 +1,4 @@
-import { createStore, forgetPadLocally, type StorageLike } from "../data/storage";
+import { createStore, forgetPadLocally, knownPadIds, type StorageLike } from "../data/storage";
 import { WrongPassword, decryptPad, derivePadKeys, encryptPad, randomSalt } from "./crypto";
 import { SYNC_ENDPOINT } from "./endpoint";
 import { WriteRefused, createRemote } from "./remote";
@@ -13,8 +13,25 @@ import { WriteRefused, createRemote } from "./remote";
 export type PadOutcome =
   | { kind: "opened" }
   | { kind: "created" }
+  /** Already on this device: go there, and touch nothing. */
+  | { kind: "alreadyHere" }
   | { kind: "wrongPassword" }
   | { kind: "failed"; detail: string };
+
+/**
+ * A pad this device already holds has its own document, its own history and
+ * its own stored password. Naming it again in the panel is a request to go
+ * there -- never to rewrite it.
+ *
+ * Everything below writes a pad's local document wholesale and cleans up after
+ * itself on failure, which is right for a pad being made or joined and
+ * disastrous for one that is already here: a mistyped password used to erase
+ * the local list, a correct one overwrote edits that had not synced, and a pad
+ * deleted from another device was re-made from whatever list was on screen.
+ */
+function isHere(backend: StorageLike, padId: string): boolean {
+  return knownPadIds(backend).includes(padId);
+}
 
 /**
  * Whether a pad is already out there. Used to tell the user which of the two
@@ -40,6 +57,8 @@ export async function openOrCreatePad(
   password: string,
   seedDoc: string,
 ): Promise<PadOutcome> {
+  if (isHere(backend, padId)) return { kind: "alreadyHere" };
+
   const exists = await padExists(padId);
   if (exists === null) return { kind: "failed", detail: "Could not reach the server" };
   return exists
@@ -53,6 +72,8 @@ export async function createPad(
   password: string,
   seedDoc: string,
 ): Promise<PadOutcome> {
+  if (isHere(backend, padId)) return { kind: "alreadyHere" };
+
   const remote = createRemote(SYNC_ENDPOINT);
   const salt = randomSalt();
   const keys = await derivePadKeys(password, salt);
@@ -86,6 +107,8 @@ export async function openExistingPad(
   padId: string,
   password: string,
 ): Promise<PadOutcome> {
+  if (isHere(backend, padId)) return { kind: "alreadyHere" };
+
   let stored;
   try {
     stored = await createRemote(SYNC_ENDPOINT).get(padId);
