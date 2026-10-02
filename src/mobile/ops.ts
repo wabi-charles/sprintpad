@@ -1,5 +1,6 @@
 import { EditorState, type TransactionSpec } from "@codemirror/state";
 import { backspaceAtLineHead, newTaskLine, toggleDone } from "../doc/edits";
+import { blockOf, moveBlock } from "../doc/blocks";
 import { indentTextFor, parseLine } from "../doc/grammar";
 import { rowsFor, type Row } from "./rows";
 
@@ -59,27 +60,16 @@ export function setTextAt(doc: string, row: Row, text: string): Applied {
 }
 
 /**
- * The rows that move as one: a task and anything nested under it.
- *
- * A keyboard moves the line the cursor is on, which is right when you can see
- * the cursor. A finger drags a thing, and a task with subtasks is one thing --
- * leaving the children behind would read as a bug.
+ * The rows that move as one: a task and anything nested under it. The rule
+ * itself lives in doc/blocks.ts, shared with the editor's drag handle, so a
+ * block is the same thing on a phone as at a desk.
  */
 export function blockAt(rows: readonly Row[], index: number): Row[] {
-  const first = rows[index];
-  if (!first) return [];
-
-  const block = [first];
-  for (let i = index + 1; i < rows.length; i++) {
-    const row = rows[i]!;
-    if (row.kind === "header") break;
-    if (row.kind !== "blank" && row.depth <= first.depth) break;
-    block.push(row);
-  }
-
-  // A trailing blank belongs to whatever came before it, not to the move.
-  while (block.length > 1 && block[block.length - 1]!.kind === "blank") block.pop();
-  return block;
+  const block = blockOf(
+    rows.map((row) => row.raw),
+    index,
+  );
+  return block ? rows.slice(block.start, block.end + 1) : [];
 }
 
 export function deleteRowAt(doc: string, index: number): Applied {
@@ -114,21 +104,17 @@ function offsetOfLine(doc: string, index: number): number {
  * is not decided here.
  */
 export function moveBlockTo(doc: string, index: number, before: number): Applied {
-  const rows = rowsFor(doc);
-  const block = blockAt(rows, index);
-  if (block.length === 0) return { doc, caret: 0 };
-
-  const start = block[0]!.index;
-  const count = block[block.length - 1]!.index - start + 1;
-  // Landing anywhere inside itself is where it already is.
-  if (before >= start && before <= start + count) return { doc, caret: block[0]!.from };
-
   const lines = doc.split("\n");
-  const moved = lines.splice(start, count);
-  const at = before > start ? before - count : before;
-  lines.splice(at, 0, ...moved);
+  const block = blockOf(lines, index);
+  if (!block) return { doc, caret: 0 };
 
-  const next = lines.join("\n");
+  const moved = moveBlock(lines, block, before);
+  // Landing anywhere inside itself is where it already is.
+  if (!moved) return { doc, caret: offsetOfLine(doc, block.start) };
+
+  const size = block.end - block.start + 1;
+  const at = before > block.end ? before - size : before;
+  const next = moved.join("\n");
   return { doc: next, caret: offsetOfLine(next, at) };
 }
 

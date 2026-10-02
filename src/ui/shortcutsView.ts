@@ -42,6 +42,7 @@ const GROUPS: Array<{ title: string; keys: Array<[string, string]> }> = [
     keys: [
       ["⌘↑", "Move task up"],
       ["⌘↓", "Move task down"],
+      ["Drag ⠿", "Move a task, with everything indented under it"],
       ["⌘Z", "Undo"],
       ["⇧⌘Z", "Redo"],
       ["⌘F", "Search"],

@@ -371,6 +371,84 @@ body {
   color: var(--sp-fg-dim);
 }
 
+/* ------------------------------------------------------------ drag rows --- */
+
+/*
+ * The grip beside a hovered row, and the line that shows where a dragged row
+ * will land. Fixed to the page rather than placed in the editor: the text
+ * column scrolls inside a box that clips its margins, and the margin is where
+ * a grip belongs. Positioned from script, beside the line under the pointer.
+ */
+.sp-grip {
+  position: fixed;
+  z-index: 6;
+  width: 20px;
+  height: 24px;
+  border-radius: 5px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sp-grip[hidden],
+.sp-drop[hidden] {
+  display: none !important;
+}
+
+/* Six dots drawn as a mask, so they take the theme's colour in both modes. */
+.sp-grip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--sp-fg-faint);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 14'%3E%3Ccircle cx='2' cy='2' r='1.4'/%3E%3Ccircle cx='6' cy='2' r='1.4'/%3E%3Ccircle cx='2' cy='7' r='1.4'/%3E%3Ccircle cx='6' cy='7' r='1.4'/%3E%3Ccircle cx='2' cy='12' r='1.4'/%3E%3Ccircle cx='6' cy='12' r='1.4'/%3E%3C/svg%3E") center / 8px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 14'%3E%3Ccircle cx='2' cy='2' r='1.4'/%3E%3Ccircle cx='6' cy='2' r='1.4'/%3E%3Ccircle cx='2' cy='7' r='1.4'/%3E%3Ccircle cx='6' cy='7' r='1.4'/%3E%3Ccircle cx='2' cy='12' r='1.4'/%3E%3Ccircle cx='6' cy='12' r='1.4'/%3E%3C/svg%3E") center / 8px 14px no-repeat;
+}
+
+.sp-grip:hover,
+.sp-grip.is-active {
+  background: var(--sp-accent-soft);
+}
+
+.sp-grip:hover::before,
+.sp-grip.is-active::before {
+  background-color: var(--sp-fg-dim);
+}
+
+.sp-drop {
+  position: fixed;
+  z-index: 6;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--sp-accent);
+  pointer-events: none;
+}
+
+/* A ring at the start of the line, so the eye finds where it begins. */
+.sp-drop::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -6px;
+  width: 8px;
+  height: 8px;
+  box-sizing: border-box;
+  border: 2px solid var(--sp-accent);
+  border-radius: 50%;
+  background: var(--sp-bg);
+}
+
+/* The rows being carried stay in place, faded, until they land. */
+.cm-line.sp-line--lifted {
+  opacity: 0.35;
+}
+
+/* Mid-drag the whole page is a drag: no text cursor, no selection. */
+body.sp-dragging-rows,
+body.sp-dragging-rows * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
 /* ----------------------------------------------------------------- park --- */
 
 .sp-park {

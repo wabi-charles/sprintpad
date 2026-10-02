@@ -12,6 +12,7 @@ import {
   resolveFocusedLines,
   setFocusAnchors,
 } from "./focusField";
+import { dragRows } from "./dragRows";
 import { INDENT_UNIT, parseLine } from "./grammar";
 import { markerInputAction, setSwallowedMarker, swallowedMarkerField } from "./markerInput";
 import { pendingTaskField, setPendingTask } from "./pendingTask";
@@ -194,6 +195,7 @@ export function createEditor(hooks: EditorHooks) {
          * floating between two tasks. CodeMirror draws its own instead.
          */
         drawSelection(),
+        dragRows(),
         search({ top: true }),
         focusAnchorsField,
         pendingTaskField,
